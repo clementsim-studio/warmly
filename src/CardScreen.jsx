@@ -1118,6 +1118,7 @@ export default function CardScreen() {
   const mockH = Math.round(dims.h * mockK);
 
   return (
+    <>
     <div data-app="" style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: 'var(--canvas)', fontFamily: 'var(--font-sans)', color: 'var(--ink-1)' }}>
       <div data-cardwrap="" style={wrapStyle}>
         <div data-scroll="" ref={scrollRef} style={{ position: 'absolute', inset: 0, overflow: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', padding: 56, boxSizing: 'border-box' }}>
@@ -1645,15 +1646,20 @@ export default function CardScreen() {
           </div>
         )}
       </div>
+    </div>
 
-      <div data-print-doc="">
-        <div className="print-page" style={{ backgroundColor: cov.tint }}>
-          <div style={{ position: 'absolute', left: '50%', top: '50%', transform: `translate(-50%,-50%) scale(${printScale})`, width: dims.w, height: dims.h, backgroundColor: cov.tint, backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(20,24,29,.05) 1px, transparent 0)', backgroundSize: '26px 26px' }} dangerouslySetInnerHTML={coverHtml} />
-        </div>
-        <div className="print-page" style={{ backgroundColor: cov.tint }}>
-          <div style={{ position: 'absolute', left: '50%', top: '50%', transform: `translate(-50%,-50%) scale(${printScale})`, width: dims.w, height: dims.h, backgroundColor: cov.tint, backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(20,24,29,.05) 1px, transparent 0)', backgroundSize: '26px 26px' }} dangerouslySetInnerHTML={insideHtml} />
-        </div>
+    {/* Rendered as a sibling of [data-app], not a descendant — the print
+        stylesheet sets [data-app]{display:none}, and a display:none
+        ancestor can't be overridden by a descendant's own display value,
+        which was silently blanking this out under @media print. */}
+    <div data-print-doc="">
+      <div className="print-page" style={{ backgroundColor: cov.tint }}>
+        <div style={{ position: 'absolute', left: '50%', top: '50%', transform: `translate(-50%,-50%) scale(${printScale})`, width: dims.w, height: dims.h, backgroundColor: cov.tint, backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(20,24,29,.05) 1px, transparent 0)', backgroundSize: '26px 26px' }} dangerouslySetInnerHTML={coverHtml} />
+      </div>
+      <div className="print-page" style={{ backgroundColor: cov.tint }}>
+        <div style={{ position: 'absolute', left: '50%', top: '50%', transform: `translate(-50%,-50%) scale(${printScale})`, width: dims.w, height: dims.h, backgroundColor: cov.tint, backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(20,24,29,.05) 1px, transparent 0)', backgroundSize: '26px 26px' }} dangerouslySetInnerHTML={insideHtml} />
       </div>
     </div>
+    </>
   );
 }

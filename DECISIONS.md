@@ -83,3 +83,9 @@ A running log of the non-obvious choices made while building Warmly, and why. Ne
 **Decision**: `{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }`.
 
 **Why**: This is a client-side-routed SPA (React Router). Without a catch-all rewrite, Vercel's static file host 404s on a direct load or refresh of `/c/<id>` or `/share/<id>`, since those aren't real files on disk. Verified in production: a direct navigation (not client-side nav) to a `/c/<id>` URL loads the app correctly with this in place.
+
+## Print-only markup (`[data-print-doc]`) must be a sibling of `[data-app]`, never a descendant
+
+**Decision**: The PDF-export markup (rendered via `dangerouslySetInnerHTML` into two `.print-page` divs) is a sibling of the main `[data-app]` wrapper, both under a single top-level `<>` fragment in `CardScreen`'s return — not nested inside `[data-app]`.
+
+**Why**: Another real, deployed bug, not a stylistic choice. The print stylesheet hides the live app and shows the print doc: `[data-app]{display:none} [data-print-doc]{display:block!important}`. `data-print-doc` was originally a *child* of `data-app`. A `display:none` ancestor removes its entire subtree from rendering — a descendant's own `display` value, `!important` or not, cannot override an ancestor's `display:none`; that's not a specificity fight, it's how the box tree works. So the print content was unconditionally blank. Confirmed by walking the DOM ancestor chain (`[data-app]` showed up as a `display:none` ancestor of the print content) and by observing that the same inline `transform` that resolves to a normal matrix in isolation computes to `transform: none` once nested under a non-laid-out ancestor — the expected behavior for a percentage-based transform with no box to resolve against. Any future print-only, download-only, or export-only markup in this codebase needs to live outside `[data-app]` for the same reason.
