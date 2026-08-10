@@ -23,3 +23,8 @@ A shareable digital group card. Someone creates a card, gets a link, and anyone 
 - New UI/visual changes → design in Claude Design first, export, hand to Claude Code with a scoped instruction (what to keep untouched).
 - New logic-only changes → describe directly, no need for Claude Design.
 - Any change touching the schema or trust model → discuss and get explicit sign-off before implementing.
+
+## Design sync
+Design updates come from the user pasting DESIGN_LOG.md entries from Claude Design manually. Log them into CHANGELOG.md and treat as the spec for implementation.
+
+(`/design-sync` is not compatible with this project: Collaborative Card, the Claude Design project this app is built from, is a regular app project, not a design-system project, and `/design-sync` only operates on design-system-type projects. DESIGN_LOG.md lives inside Collaborative Card and stays there — nothing here reads it directly.)
