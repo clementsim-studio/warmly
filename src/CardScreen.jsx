@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import * as db from './lib/cardData';
 import { getParticipant, rememberParticipantName } from './lib/participant';
 import { stickerSvg, COVERS } from './lib/stickers';
@@ -39,6 +41,16 @@ function applyPrintPageSize(mm) {
   el.textContent = `@media print{@page{size:${mm.w}mm ${mm.h}mm;margin:0;}.print-page{width:${mm.w}mm !important;height:${mm.h}mm !important;}}`;
 }
 
+function slugFor(card) {
+  const r =
+    (card.recipient || 'card')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || 'card';
+  return `${r}-${card.occasion}`;
+}
+
 export default function CardScreen() {
   const { id: cardId } = useParams();
   const participantRef = useRef(getParticipant(cardId));
@@ -63,6 +75,7 @@ export default function CardScreen() {
   const [sendEmail, setSendEmail] = useState('');
   const [showDownload, setShowDownload] = useState(false);
   const [printSize, setPrintSize] = useState('a5');
+  const [pdfBusy, setPdfBusy] = useState(false);
   const [expiryNudgeDismissed, setExpiryNudgeDismissed] = useState(false);
   const [demoNearExpiry, setDemoNearExpiry] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -889,7 +902,14 @@ export default function CardScreen() {
   };
   const closeDownload = () => setShowDownload(false);
 
-  const downloadPdf = () => {
+  const armFeedbackTimer = () => {
+    feedbackTimerRef.current && clearTimeout(feedbackTimerRef.current);
+    feedbackTimerRef.current = setTimeout(() => {
+      if (!feedbackDone) openFeedback();
+    }, 1200);
+  };
+
+  const fallbackToPrint = () => {
     const t = card ? COVERS[card.cover_color].tint : '#fff';
     try {
       document.documentElement.style.setProperty('--pg', t);
@@ -897,21 +917,59 @@ export default function CardScreen() {
       // ignore
     }
     if (card) applyPrintPageSize(printMMFor(card.format, printSize));
-    setShowDownload(false);
-    setShowSend(false);
-    setShowSigners(false);
-    setSelectedId(null);
     setTimeout(() => {
       try {
         window.print();
       } catch {
         // ignore
       }
-      feedbackTimerRef.current && clearTimeout(feedbackTimerRef.current);
-      feedbackTimerRef.current = setTimeout(() => {
-        if (!feedbackDone) openFeedback();
-      }, 1200);
+      armFeedbackTimer();
     }, 80);
+  };
+
+  const rasterFace = async (html) => {
+    const dims = cardDims(card.format);
+    const tint = COVERS[card.cover_color].tint;
+    const node = document.createElement('div');
+    node.style.cssText = `position:fixed;left:-99999px;top:0;width:${dims.w}px;height:${dims.h}px;background:${tint};background-image:radial-gradient(circle at 1px 1px, rgba(20,24,29,.05) 1px, transparent 0);background-size:26px 26px;overflow:hidden;`;
+    node.innerHTML = html;
+    document.body.appendChild(node);
+    try {
+      const mm = printMMFor(card.format, printSize);
+      const targetW = (mm.w / 25.4) * 300;
+      const scale = Math.min(4, Math.max(1, targetW / dims.w));
+      const canvas = await html2canvas(node, { scale, backgroundColor: tint, useCORS: true, logging: false });
+      return canvas.toDataURL('image/jpeg', 0.95);
+    } finally {
+      document.body.removeChild(node);
+    }
+  };
+
+  const downloadPdf = async () => {
+    if (pdfBusy || !card) return;
+    setShowSigners(false);
+    setSelectedId(null);
+    setPdfBusy(true);
+    showToast('Building your PDF…');
+    try {
+      const mm = printMMFor(card.format, printSize);
+      const land = mm.w > mm.h;
+      const cover = await rasterFace(coverHtml.__html);
+      const inside = await rasterFace(insideHtml.__html);
+      const pdf = new jsPDF({ orientation: land ? 'landscape' : 'portrait', unit: 'mm', format: [mm.w, mm.h] });
+      pdf.addImage(cover, 'JPEG', 0, 0, mm.w, mm.h, '', 'FAST');
+      pdf.addPage([mm.w, mm.h], land ? 'landscape' : 'portrait');
+      pdf.addImage(inside, 'JPEG', 0, 0, mm.w, mm.h, '', 'FAST');
+      pdf.save(`warmly-${slugFor(card)}-${printSize}.pdf`);
+      showToast('Card downloaded — ' + printSize.toUpperCase());
+      setShowDownload(false);
+      armFeedbackTimer();
+    } catch (err) {
+      console.error(err);
+      setShowDownload(false);
+      fallbackToPrint();
+    }
+    setPdfBusy(false);
   };
 
   const photoUrlFor = (o) => o._localPreview || (o.photo_path ? db.photoUrl(o.photo_path) : null);
@@ -1717,13 +1775,17 @@ export default function CardScreen() {
               </div>
               <p style={{ fontSize: 12, color: 'var(--ink-4)', lineHeight: 1.4, margin: '9px 0 18px' }}>{sizeDetail}</p>
 
-              <button onClick={downloadPdf} style={{ width: '100%', height: 52, borderRadius: 'var(--radius-pill)', border: 'none', background: 'var(--brand)', color: '#fff', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: 'var(--shadow-brand)' }}>
+              <button
+                onClick={downloadPdf}
+                disabled={pdfBusy}
+                style={{ width: '100%', height: 52, borderRadius: 'var(--radius-pill)', border: 'none', background: 'var(--brand)', color: '#fff', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 15, cursor: pdfBusy ? 'default' : 'pointer', opacity: pdfBusy ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: 'var(--shadow-brand)' }}
+              >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                   <path d="M7 10l5 5 5-5"></path>
                   <path d="M12 15V3"></path>
                 </svg>
-                Download as PDF
+                {pdfBusy ? 'Preparing…' : 'Download as PDF'}
               </button>
               <p style={{ fontSize: 12.5, color: 'var(--ink-4)', lineHeight: 1.45, margin: '10px 0 0' }}>Free to download as many times as you like.</p>
             </div>
