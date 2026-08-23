@@ -4,6 +4,7 @@ import * as db from './lib/cardData';
 import { getParticipant, rememberParticipantName } from './lib/participant';
 import { stickerSvg, COVERS } from './lib/stickers';
 import { cardDims, objectsToHTML, seedCoverObjects, leafShadowSvg } from './lib/canvasHtml';
+import { occasionInfo } from './lib/occasions';
 import ObjectView from './ObjectView.jsx';
 
 const LIMIT = 10;
@@ -113,7 +114,7 @@ export default function CardScreen() {
         let finalObjects = objs;
         let finalCard = cardRow;
         if (!objs.some((o) => o.cover_kind)) {
-          const motif = cardRow.occasion === 'birthday' ? 'cake' : 'star';
+          const motif = occasionInfo(cardRow.occasion).motif;
           await db.updateCard(cardId, { cover_motif: motif, cover_layout: 'centered' });
           finalCard = { ...cardRow, cover_motif: motif, cover_layout: 'centered' };
           const seeds = seedCoverObjects('centered', motif, cardRow.cover_color, cardRow.occasion, cardRow.recipient, cardRow.format).map((s) => ({
@@ -1099,7 +1100,7 @@ export default function CardScreen() {
   }
 
   const recipientName = (card.recipient || '').trim() || 'them';
-  const occasionWord = card.occasion === 'birthday' ? 'Happy Birthday' : 'Farewell';
+  const occasionWord = occasionInfo(card.occasion).cover;
   const link = `${window.location.origin}/c/${cardId}`;
   const showColorRow = (tool === 'write' && face === 'inside') || tool === 'draw' || (selObj && selObj.type === 'text');
   const showFontToggle = (tool === 'write' && face === 'inside') || (selObj && selObj.type === 'text' && !selObj.cover_kind);
@@ -1207,7 +1208,7 @@ export default function CardScreen() {
             </button>
             <button
               onClick={() => {
-                const m = card.cover_motif || (card.occasion === 'birthday' ? 'cake' : 'star');
+                const m = card.cover_motif || occasionInfo(card.occasion).motif;
                 setDelivering(true);
                 setShowSend(false);
                 setShowSigners(false);

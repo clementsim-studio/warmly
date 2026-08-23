@@ -1,21 +1,23 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createCard } from './lib/cardData';
+import { OCCASIONS, OCCASION_KEYS } from './lib/occasions';
 
 const occStyle = (sel) => ({
-  display: 'flex',
-  flexDirection: 'column',
+  display: 'inline-flex',
   alignItems: 'center',
-  justifyContent: 'center',
-  gap: '8px',
-  flex: 1,
-  height: '104px',
-  borderRadius: 'var(--radius-lg)',
+  gap: '7px',
+  whiteSpace: 'nowrap',
+  height: '42px',
+  padding: '0 16px',
+  borderRadius: '999px',
   cursor: 'pointer',
   fontFamily: 'var(--font-sans)',
+  fontWeight: 600,
+  fontSize: '14px',
   backgroundColor: sel ? 'var(--green-soft)' : 'var(--white)',
   border: sel ? '1.5px solid var(--green)' : '1.5px solid var(--line-strong)',
-  color: sel ? 'var(--green-ink)' : 'var(--ink-1)',
+  color: sel ? 'var(--green-ink)' : 'var(--ink-2)',
   boxShadow: sel ? 'var(--shadow-sm)' : 'var(--shadow-xs)',
   transition: 'all var(--dur-base) var(--ease-standard)',
 });
@@ -125,26 +127,17 @@ export default function CreateScreen() {
           >
             The occasion
           </div>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
-            <button onClick={() => setOccasion('birthday')} style={occStyle(occasion === 'birthday')}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 20h16"></path>
-                <path d="M5 20v-7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7"></path>
-                <path d="M4 14.5c1.4 1.4 3 1.4 4.2 0s2.6-1.4 4 0 2.6 1.4 4 0 2.6-1.4 3.8 0"></path>
-                <path d="M12 8V5"></path>
-                <circle cx="12" cy="3.6" r="1"></circle>
-              </svg>
-              <span style={{ fontWeight: 600, fontSize: 15 }}>Birthday</span>
-            </button>
-            <button onClick={() => setOccasion('farewell')} style={occStyle(occasion === 'farewell')}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="7" width="18" height="13" rx="2"></rect>
-                <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                <path d="M12 11.5v4"></path>
-              </svg>
-              <span style={{ fontWeight: 600, fontSize: 15 }}>Farewell</span>
-            </button>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+            {OCCASION_KEYS.map((key) => (
+              <button key={key} onClick={() => setOccasion(key)} style={occStyle(occasion === key)}>
+                <span style={{ fontSize: 17, lineHeight: 1 }}>{OCCASIONS[key].emoji}</span>
+                <span>{OCCASIONS[key].label}</span>
+              </button>
+            ))}
           </div>
+          <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: '0 0 24px' }}>
+            Just sets the greeting on the cover — you can change it any time inside the card.
+          </p>
 
           <div
             style={{

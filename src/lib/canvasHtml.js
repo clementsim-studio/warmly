@@ -1,4 +1,5 @@
 import { stickerSvg } from './stickers';
+import { occasionInfo } from './occasions';
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -49,7 +50,7 @@ export function seedCoverObjects(layout, motif, cover, occasion, recipient, form
   const W = dims.w,
     H = dims.h;
   const ink = { blue: '#1a44b8', pink: '#b32b6c', green: '#075c3d', yellow: '#946a05', purple: '#5b34c4' }[cover];
-  const occ = occasion === 'birthday' ? 'Happy Birthday' : 'Farewell';
+  const occ = occasionInfo(occasion).cover;
   const R = (recipient || '').trim() || 'you';
 
   const T = (coverKind, x, y, w, fsize, family, weight, text, align) => ({
