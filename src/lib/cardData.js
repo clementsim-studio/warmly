@@ -55,6 +55,15 @@ export function isCapRejection(error) {
   return !!error && /signature_cap_reached/.test(error.message || '');
 }
 
+// A write hit a card that's past its 14-day lifespan — raised by
+// enforce_card_not_resting (see supabase/migrations/0004_card_lifespan.sql).
+// The client normally catches this earlier (CardScreen shows a placeholder
+// instead of the canvas once a card is resting), so this mainly covers a
+// tab left open across the 14-day boundary.
+export function isRestingRejection(error) {
+  return !!error && /card_resting/.test(error.message || '');
+}
+
 // A concurrent first-load raced the cover-template seed and won (see the
 // card_objects_card_cover_kind_uidx constraint in the migration).
 export function isCoverSeedRace(error) {

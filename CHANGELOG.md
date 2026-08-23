@@ -2,6 +2,14 @@
 
 Notable changes to Warmly, newest entry first. See [DECISIONS.md](./DECISIONS.md) for the reasoning behind architectural choices, not just what changed.
 
+## 2026-08-24
+
+### Added
+- 14-day card lifespan is now enforced, not just displayed: a new trigger (`supabase/migrations/0004_card_lifespan.sql`) rejects writes to `card_objects` and signer-name updates once a card is past 14 days old, and `CardScreen` shows a plain placeholder screen ("This card has settled") instead of the canvas for resting cards. The placeholder is explicitly temporary — a real "expired" page design is still pending.
+
+### Notes
+- **Migration not yet run**: `0004_card_lifespan.sql` needs to be applied in the Supabase SQL Editor, same as the still-pending `0002_occasions.sql` and `0003_signature_cap_20.sql`.
+
 ## 2026-08-23
 
 Brought the app in line with a 2026 design refresh (`design_handoff_warmly/`) via a 12-commit sequence, each built, reviewed, and pushed separately.

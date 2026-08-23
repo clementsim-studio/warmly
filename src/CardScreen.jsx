@@ -576,6 +576,8 @@ export default function CardScreen() {
           setObjects((prev) => prev.filter((x) => x.id !== id));
           if (db.isCapRejection(err)) {
             showToast('This card’s full of signatures — time to send it');
+          } else if (db.isRestingRejection(err)) {
+            showToast('This card has settled — no more changes');
           } else {
             console.error(err);
             showToast('Could not save your note — try again');
@@ -1098,6 +1100,18 @@ export default function CardScreen() {
     return (
       <div style={{ position: 'fixed', inset: 0, background: 'var(--canvas)', display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center', justifyContent: 'center', color: 'var(--ink-2)', fontFamily: 'var(--font-sans)' }}>
         <div style={{ fontSize: 20, fontWeight: 700 }}>This card doesn't exist.</div>
+        <a href="/">Start a new one →</a>
+      </div>
+    );
+  }
+  if (archivesAt && Date.now() > archivesAt.getTime()) {
+    // Temporary placeholder — a real "expired" page design is still pending
+    // (see DECISIONS.md). This is deliberately plain: it only needs to stop
+    // the canvas from rendering, not carry the final look.
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: 'var(--canvas)', display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center', justifyContent: 'center', color: 'var(--ink-2)', fontFamily: 'var(--font-sans)', textAlign: 'center', padding: 20 }}>
+        <div style={{ fontSize: 20, fontWeight: 700 }}>This card has settled.</div>
+        <p style={{ maxWidth: 360, color: 'var(--ink-3)', fontSize: 14, lineHeight: 1.5, margin: 0 }}>It was open for signing for two weeks and isn't taking new changes anymore.</p>
         <a href="/">Start a new one →</a>
       </div>
     );
