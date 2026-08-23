@@ -5,7 +5,7 @@ import { getParticipant, rememberParticipantName } from './lib/participant';
 import { stickerSvg, COVERS } from './lib/stickers';
 import { cardDims, objectsToHTML, seedCoverObjects, leafShadowSvg } from './lib/canvasHtml';
 import { occasionInfo } from './lib/occasions';
-import { FEATURE_MONETIZATION } from './lib/featureFlags';
+import { FEATURE_MONETIZATION, FEATURE_PREVIEW_AND_SEND_PAGE } from './lib/featureFlags';
 import ObjectView from './ObjectView.jsx';
 
 const LIMIT = 20;
@@ -17,6 +17,26 @@ function fitZoomFor(format) {
   let z = Math.min((w - 150) / d.w, (h - 250) / d.h);
   z = Math.max(0.3, Math.min(1, z));
   return Math.round(z * 100) / 100;
+}
+
+const PRINT_SIZES_MM = { a4: [210, 297], a5: [148, 210], a6: [105, 148] };
+
+function printMMFor(format, printSize) {
+  const base = PRINT_SIZES_MM[printSize] || PRINT_SIZES_MM.a5;
+  const land = format === 'landscape';
+  const w = land ? Math.max(base[0], base[1]) : Math.min(base[0], base[1]);
+  const h = land ? Math.min(base[0], base[1]) : Math.max(base[0], base[1]);
+  return { w, h };
+}
+
+function applyPrintPageSize(mm) {
+  let el = document.getElementById('warmly-print-page');
+  if (!el) {
+    el = document.createElement('style');
+    el.id = 'warmly-print-page';
+    document.head.appendChild(el);
+  }
+  el.textContent = `@media print{@page{size:${mm.w}mm ${mm.h}mm;margin:0;}.print-page{width:${mm.w}mm !important;height:${mm.h}mm !important;}}`;
 }
 
 export default function CardScreen() {
@@ -41,6 +61,8 @@ export default function CardScreen() {
   const [showSigners, setShowSigners] = useState(false);
   const [showSend, setShowSend] = useState(false);
   const [sendEmail, setSendEmail] = useState('');
+  const [showDownload, setShowDownload] = useState(false);
+  const [printSize, setPrintSize] = useState('a5');
   const [expiryNudgeDismissed, setExpiryNudgeDismissed] = useState(false);
   const [demoNearExpiry, setDemoNearExpiry] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -858,6 +880,15 @@ export default function CardScreen() {
     setFeedbackDone(true);
   };
 
+  const openDownload = () => {
+    setShowDownload(true);
+    setShowSend(false);
+    setShowSigners(false);
+    setShowCoverPicker(false);
+    setSelectedId(null);
+  };
+  const closeDownload = () => setShowDownload(false);
+
   const downloadPdf = () => {
     const t = card ? COVERS[card.cover_color].tint : '#fff';
     try {
@@ -865,6 +896,8 @@ export default function CardScreen() {
     } catch {
       // ignore
     }
+    if (card) applyPrintPageSize(printMMFor(card.format, printSize));
+    setShowDownload(false);
     setShowSend(false);
     setShowSigners(false);
     setSelectedId(null);
@@ -1219,7 +1252,12 @@ export default function CardScreen() {
     const w = (typeof window !== 'undefined' && window.innerWidth) || 1000;
     return Math.min(720, Math.max(300, w - 380)) / dims.w;
   };
-  const printScale = Math.min(1123 / dims.w, 794 / dims.h);
+  const printMM = printMMFor(card.format, printSize);
+  const printPxW = (printMM.w * 96) / 25.4;
+  const printPxH = (printMM.h * 96) / 25.4;
+  const printScale = Math.min(printPxW / dims.w, printPxH / dims.h);
+  const orientationLabel = card.format === 'landscape' ? 'Landscape' : 'Portrait';
+  const sizeDetail = printSize.toUpperCase() + ' · ' + printMM.w + ' × ' + printMM.h + ' mm — copy these numbers to your print shop.';
   const mockW = card.format === 'portrait' ? 270 : 330;
   const mockK = mockW / dims.w;
   const mockH = Math.round(dims.h * mockK);
@@ -1313,24 +1351,15 @@ export default function CardScreen() {
               <span>Share</span>
             </button>
             <button
-              onClick={() => {
-                const m = card.cover_motif || occasionInfo(card.occasion).motif;
-                setDelivering(true);
-                setShowSend(false);
-                setShowSigners(false);
-                setShowCoverPicker(false);
-                setSelectedId(null);
-                setDeliverFace('front');
-                setDeliverStage('preview');
-                if (!card.cover_motif) setCard((c) => ({ ...c, cover_motif: m }));
-              }}
+              onClick={openDownload}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 40, padding: '0 18px', borderRadius: 999, border: 'none', background: 'var(--brand)', color: '#fff', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 14, cursor: 'pointer', boxShadow: 'var(--shadow-brand)', flexShrink: 0 }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"></path>
-                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <path d="M7 10l5 5 5-5"></path>
+                <path d="M12 15V3"></path>
               </svg>
-              <span>Preview</span>
+              <span>Download</span>
             </button>
 
             {showSigners && (
@@ -1386,7 +1415,7 @@ export default function CardScreen() {
               <path d="M12 8v4l3 2"></path>
             </svg>
             <span style={{ fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.35 }}>{expiryNudgeText}</span>
-            <button data-nudge-act="" onClick={() => { setShowSend(true); setShowSigners(false); setSelectedId(null); }} style={{ flexShrink: 0, height: 34, padding: '0 16px', borderRadius: 999, border: 'none', background: 'var(--ink-1)', color: '#fff', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+            <button data-nudge-act="" onClick={openDownload} style={{ flexShrink: 0, height: 34, padding: '0 16px', borderRadius: 999, border: 'none', background: 'var(--ink-1)', color: '#fff', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
               Download
             </button>
             <button data-nudge-act="" onClick={() => setExpiryNudgeDismissed(true)} title="Dismiss" style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 999, border: 'none', background: 'var(--sunken)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1645,6 +1674,62 @@ export default function CardScreen() {
           </div>
         )}
 
+        {showDownload && (
+          <div data-chrome="" onPointerDown={closeDownload} style={{ position: 'absolute', inset: 0, zIndex: 340, background: 'rgba(20,24,29,.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, animation: 'fadeUp .25s var(--ease-out)', overflow: 'auto' }}>
+            <div onPointerDown={stop} style={{ width: '100%', maxWidth: 440, background: 'var(--white)', borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)', padding: '30px 30px 26px', position: 'relative' }}>
+              <button onClick={closeDownload} style={{ position: 'absolute', top: 16, right: 16, width: 34, height: 34, borderRadius: 999, border: 'none', background: 'var(--sunken)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ink-2)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6L6 18M6 6l12 12"></path>
+                </svg>
+              </button>
+              <div style={{ fontSize: 23, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 4 }}>Download the card</div>
+              <p style={{ fontSize: 13.5, color: 'var(--ink-3)', lineHeight: 1.4, margin: '0 0 22px' }}>A two-page PDF — the cover, then everyone's inside spread.</p>
+
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>Choose a size</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>{orientationLabel}</span>
+              </div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'stretch' }}>
+                {['a4', 'a5', 'a6'].map((id) => {
+                  const helper = { a4: 'A full sheet of paper', a5: 'Half of A4', a6: 'A quarter of A4' }[id];
+                  const base = PRINT_SIZES_MM[id];
+                  const land = card.format === 'landscape';
+                  const k = 58 / 297;
+                  const long = Math.max(base[0], base[1]) * k,
+                    short = Math.min(base[0], base[1]) * k;
+                  const rw = land ? long : short,
+                    rh = land ? short : long;
+                  const sel = printSize === id;
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => setPrintSize(id)}
+                      style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '12px 8px 13px', borderRadius: 'var(--radius-lg)', cursor: 'pointer', fontFamily: 'var(--font-sans)', background: sel ? 'var(--green-soft)' : 'var(--white)', border: sel ? '1.5px solid var(--green)' : '1.5px solid var(--line-strong)', color: 'var(--ink-1)', boxShadow: sel ? 'var(--shadow-sm)' : 'var(--shadow-xs)' }}
+                    >
+                      <div style={{ height: 70, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+                        <div style={{ width: rw, height: rh, borderRadius: 3, background: sel ? 'var(--green)' : 'var(--sunken)', border: sel ? 'none' : '1.5px solid var(--line-strong)' }} />
+                      </div>
+                      <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>{id.toUpperCase()}</div>
+                      <div style={{ fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.25 }}>{helper}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--ink-4)', lineHeight: 1.4, margin: '9px 0 18px' }}>{sizeDetail}</p>
+
+              <button onClick={downloadPdf} style={{ width: '100%', height: 52, borderRadius: 'var(--radius-pill)', border: 'none', background: 'var(--brand)', color: '#fff', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: 'var(--shadow-brand)' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <path d="M7 10l5 5 5-5"></path>
+                  <path d="M12 15V3"></path>
+                </svg>
+                Download as PDF
+              </button>
+              <p style={{ fontSize: 12.5, color: 'var(--ink-4)', lineHeight: 1.45, margin: '10px 0 0' }}>Free to download as many times as you like.</p>
+            </div>
+          </div>
+        )}
+
         {FEATURE_MONETIZATION && showUpgrade && (
           <div data-chrome="" onPointerDown={() => setShowUpgrade(false)} style={{ position: 'absolute', inset: 0, zIndex: 340, background: 'rgba(20,24,29,.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, animation: 'fadeUp .25s var(--ease-out)', overflow: 'auto' }}>
             <div onPointerDown={stop} style={{ width: '100%', maxWidth: 440, background: 'var(--white)', borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)', overflow: 'hidden', position: 'relative' }}>
@@ -1776,7 +1861,7 @@ export default function CardScreen() {
           </div>
         )}
 
-        {delivering && (
+        {FEATURE_PREVIEW_AND_SEND_PAGE && delivering && (
           <div data-chrome="" style={{ position: 'absolute', inset: 0, zIndex: 320, background: 'var(--canvas)', overflow: 'auto', display: 'flex', flexDirection: 'column', animation: 'fadeUp .3s var(--ease-out)' }}>
             <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '18px 22px', borderBottom: '1px solid var(--line)', background: 'color-mix(in srgb,var(--white) 70%,transparent)', backdropFilter: 'blur(8px)', position: 'sticky', top: 0, zIndex: 2 }}>
               <button onClick={() => setDelivering(false)} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 40, padding: '0 16px 0 12px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--line)', background: 'var(--white)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 14, color: 'var(--ink-2)' }}>
