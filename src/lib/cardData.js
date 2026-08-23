@@ -64,6 +64,12 @@ export function isRestingRejection(error) {
   return !!error && /card_resting/.test(error.message || '');
 }
 
+// The daily new-card rate guard rejected this one — raised by
+// enforce_daily_card_limit (see supabase/migrations/0005_daily_card_limit.sql).
+export function isDailyLimitRejection(error) {
+  return !!error && /daily_card_limit_reached/.test(error.message || '');
+}
+
 // A concurrent first-load raced the cover-template seed and won (see the
 // card_objects_card_cover_kind_uidx constraint in the migration).
 export function isCoverSeedRace(error) {

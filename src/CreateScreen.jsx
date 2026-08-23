@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createCard } from './lib/cardData';
+import { createCard, isDailyLimitRejection } from './lib/cardData';
 import { OCCASIONS, OCCASION_KEYS } from './lib/occasions';
 
 const occStyle = (sel) => ({
@@ -70,9 +70,13 @@ export default function CreateScreen() {
       const card = await createCard({ recipient, occasion, format, coverColor: 'blue' });
       navigate(`/share/${card.id}`);
     } catch (e) {
-      console.error(e);
       setBusy(false);
-      setError('Could not create the card. Please try again.');
+      if (isDailyLimitRejection(e)) {
+        setError("Warmly's at capacity for today — try again tomorrow.");
+      } else {
+        console.error(e);
+        setError('Could not create the card. Please try again.');
+      }
     }
   };
 

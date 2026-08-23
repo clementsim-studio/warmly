@@ -6,9 +6,10 @@ Notable changes to Warmly, newest entry first. See [DECISIONS.md](./DECISIONS.md
 
 ### Added
 - 14-day card lifespan is now enforced, not just displayed: a new trigger (`supabase/migrations/0004_card_lifespan.sql`) rejects writes to `card_objects` and signer-name updates once a card is past 14 days old, and `CardScreen` shows a plain placeholder screen ("This card has settled") instead of the canvas for resting cards. The placeholder is explicitly temporary — a real "expired" page design is still pending.
+- System-level rate guard: at most 100 new cards per UTC day, enforced by a new trigger (`supabase/migrations/0005_daily_card_limit.sql`). `CreateScreen` shows a graceful "Warmly's at capacity for today — try again tomorrow" message on rejection instead of the generic creation-failed error.
 
 ### Notes
-- **Migration not yet run**: `0004_card_lifespan.sql` needs to be applied in the Supabase SQL Editor, same as the still-pending `0002_occasions.sql` and `0003_signature_cap_20.sql`.
+- **Migrations not yet run**: `0004_card_lifespan.sql` and `0005_daily_card_limit.sql` need to be applied in the Supabase SQL Editor, same as the still-pending `0002_occasions.sql` and `0003_signature_cap_20.sql`.
 
 ## 2026-08-23
 
