@@ -5,6 +5,7 @@ import { getParticipant, rememberParticipantName } from './lib/participant';
 import { stickerSvg, COVERS } from './lib/stickers';
 import { cardDims, objectsToHTML, seedCoverObjects, leafShadowSvg } from './lib/canvasHtml';
 import { occasionInfo } from './lib/occasions';
+import { FEATURE_MONETIZATION } from './lib/featureFlags';
 import ObjectView from './ObjectView.jsx';
 
 const LIMIT = 20;
@@ -490,9 +491,7 @@ export default function CardScreen() {
         setObjects((prev) => prev.filter((x) => x.id !== id));
         setEditingId(null);
         if (db.isCapRejection(err)) {
-          showToast('This card is full — 10 people have already signed');
-          setShowUpgrade(true);
-          setUpgradeStage('plan');
+          showToast('This card’s full of signatures — time to send it');
         } else {
           console.error(err);
           showToast('Could not save your note — try again');
@@ -1239,7 +1238,7 @@ export default function CardScreen() {
                   <div style={{ height: '100%', width: pct + '%', borderRadius: 999, background: full || unlimited ? 'var(--green)' : 'var(--brand)', transition: 'width var(--dur-slow) var(--ease-out)' }} />
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 16 }}>{capNote}.</div>
-                {!unlimited && (
+                {FEATURE_MONETIZATION && !unlimited && (
                   <button
                     onClick={() => {
                       setShowUpgrade(true);
@@ -1436,7 +1435,7 @@ export default function CardScreen() {
           </div>
         )}
 
-        {showUpgrade && (
+        {FEATURE_MONETIZATION && showUpgrade && (
           <div data-chrome="" onPointerDown={() => setShowUpgrade(false)} style={{ position: 'absolute', inset: 0, zIndex: 340, background: 'rgba(20,24,29,.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, animation: 'fadeUp .25s var(--ease-out)', overflow: 'auto' }}>
             <div onPointerDown={stop} style={{ width: '100%', maxWidth: 440, background: 'var(--white)', borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)', overflow: 'hidden', position: 'relative' }}>
               <button onClick={() => setShowUpgrade(false)} style={{ position: 'absolute', top: 16, right: 16, width: 34, height: 34, borderRadius: 999, border: 'none', background: 'color-mix(in srgb,var(--white) 60%,transparent)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>
