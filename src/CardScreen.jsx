@@ -7,7 +7,7 @@ import { cardDims, objectsToHTML, seedCoverObjects, leafShadowSvg } from './lib/
 import { occasionInfo } from './lib/occasions';
 import ObjectView from './ObjectView.jsx';
 
-const LIMIT = 10;
+const LIMIT = 20;
 
 function fitZoomFor(format) {
   const d = cardDims(format);
@@ -845,7 +845,7 @@ export default function CardScreen() {
   const near = !unlimited && remaining <= 3;
   const signerLabel = unlimited ? count + ' signed' : count + ' of ' + LIMIT + ' signed';
   const pct = unlimited ? 100 : Math.min(100, Math.round((count / LIMIT) * 100));
-  const capNote = unlimited ? 'Unlimited signatures on this card' : full ? 'This card is full — upgrade to add more' : remaining + ' signature' + (remaining === 1 ? '' : 's') + ' left on the free plan';
+  const capNote = unlimited ? 'Unlimited signatures on this card' : full ? 'This card’s full of signatures — time to send it' : remaining + ' of ' + LIMIT + ' spots left';
 
   const ownerColorFor = (ownerId) => (signers.find((s) => s.id === ownerId) || {}).color || '#2f6bff';
   const hasText = (ownerId) => objects.some((o) => o.owner_id === ownerId && o.type === 'text');
@@ -1431,7 +1431,7 @@ export default function CardScreen() {
                   {copied ? 'Copied ✓' : 'Copy link'}
                 </button>
               </div>
-              <p style={{ fontSize: 13, color: 'var(--ink-4)', lineHeight: 1.45, margin: '2px 0 0' }}>Anyone who opens it can start writing straight away — no accounts. Up to 10 people can sign on the free plan.</p>
+              <p style={{ fontSize: 13, color: 'var(--ink-4)', lineHeight: 1.45, margin: '2px 0 0' }}>Anyone who opens it can start writing straight away — no accounts. Up to 20 people can sign, free.</p>
             </div>
           </div>
         )}
