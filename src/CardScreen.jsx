@@ -43,6 +43,11 @@ export default function CardScreen() {
   const [sendEmail, setSendEmail] = useState('');
   const [expiryNudgeDismissed, setExpiryNudgeDismissed] = useState(false);
   const [demoNearExpiry, setDemoNearExpiry] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackStage, setFeedbackStage] = useState('open');
+  const [feedbackRating, setFeedbackRating] = useState(0);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackDone, setFeedbackDone] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [upgradeStage, setUpgradeStage] = useState('plan');
   const [payCard, setPayCard] = useState('');
@@ -79,6 +84,7 @@ export default function CardScreen() {
   const toastTimerRef = useRef(null);
   const openTimerRef = useRef(null);
   const copyTimerRef = useRef(null);
+  const feedbackTimerRef = useRef(null);
   // Guards against commitBox being invoked twice for the same box — the
   // canvas's onSurfaceDown (pointerdown, fires first) and the editing box's
   // native onBlur (fires shortly after, once focus actually leaves) can both
@@ -830,6 +836,28 @@ export default function CardScreen() {
     showToast('On its way to ' + e);
   };
 
+  const openFeedback = () => {
+    setShowFeedback(true);
+    setFeedbackStage('open');
+    setShowSigners(false);
+    setShowSend(false);
+    setSelectedId(null);
+  };
+  const closeFeedback = () => {
+    setShowFeedback(false);
+    setFeedbackStage('open');
+    setFeedbackRating(0);
+    setFeedbackText('');
+  };
+  const submitFeedback = () => {
+    if (!feedbackRating) {
+      showToast('Pick a rating first');
+      return;
+    }
+    setFeedbackStage('sent');
+    setFeedbackDone(true);
+  };
+
   const downloadPdf = () => {
     const t = card ? COVERS[card.cover_color].tint : '#fff';
     try {
@@ -846,6 +874,10 @@ export default function CardScreen() {
       } catch {
         // ignore
       }
+      feedbackTimerRef.current && clearTimeout(feedbackTimerRef.current);
+      feedbackTimerRef.current = setTimeout(() => {
+        if (!feedbackDone) openFeedback();
+      }, 1200);
     }, 80);
   };
 
@@ -1500,6 +1532,78 @@ export default function CardScreen() {
             </svg>
           </button>
         </div>
+
+        <button
+          onClick={openFeedback}
+          data-chrome=""
+          title="Share feedback"
+          style={{ position: 'absolute', bottom: 28, right: 20, zIndex: 100, display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 18px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--line)', background: 'var(--white)', color: 'var(--ink-2)', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13.5, cursor: 'pointer', boxShadow: 'var(--shadow-sm)' }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span>Feedback</span>
+        </button>
+
+        {showFeedback && (
+          <div data-chrome="" onPointerDown={closeFeedback} style={{ position: 'absolute', inset: 0, zIndex: 345, background: 'rgba(20,24,29,.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, animation: 'fadeUp .25s var(--ease-out)', overflow: 'auto' }}>
+            <div onPointerDown={stop} style={{ width: '100%', maxWidth: 410, background: 'var(--white)', borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)', padding: '30px 30px 26px', position: 'relative' }}>
+              <button onClick={closeFeedback} style={{ position: 'absolute', top: 16, right: 16, width: 34, height: 34, borderRadius: 999, border: 'none', background: 'var(--sunken)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ink-2)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6L6 18M6 6l12 12"></path>
+                </svg>
+              </button>
+
+              {feedbackStage === 'open' && (
+                <div>
+                  <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 4 }}>How was making this card?</div>
+                  <p style={{ fontSize: 13.5, color: 'var(--ink-3)', lineHeight: 1.4, margin: '0 0 20px' }}>Two seconds, and it genuinely helps.</p>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => setFeedbackRating(n)}
+                        title={n + ' star' + (n === 1 ? '' : 's')}
+                        style={{ width: 44, height: 44, borderRadius: 14, border: 'none', background: n <= feedbackRating ? 'var(--yellow-soft)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, transform: n === feedbackRating ? 'scale(1.08)' : 'none' }}
+                      >
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill={n <= feedbackRating ? 'var(--yellow)' : 'none'} stroke={n <= feedbackRating ? 'var(--yellow)' : 'var(--ink-4)'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 3l2.7 5.8 6.3.6-4.8 4.2 1.4 6.2L12 16.9 6.4 19.8l1.4-6.2L3 9.4l6.3-.6z"></path>
+                        </svg>
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    value={feedbackText}
+                    onChange={(e) => setFeedbackText(e.target.value)}
+                    placeholder="How could we do better? (optional)"
+                    style={{ width: '100%', minHeight: 88, padding: '13px 15px', fontSize: 14.5, fontFamily: 'var(--font-sans)', lineHeight: 1.45, border: '1.5px solid var(--line-strong)', borderRadius: 'var(--radius-md)', outline: 'none', background: 'var(--white)', color: 'var(--ink-1)', resize: 'vertical', marginBottom: 16 }}
+                  />
+                  <button
+                    onClick={submitFeedback}
+                    style={{ width: '100%', height: 50, borderRadius: 'var(--radius-pill)', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 15, background: feedbackRating ? 'var(--green)' : 'var(--sunken)', color: feedbackRating ? '#fff' : 'var(--ink-4)', boxShadow: feedbackRating ? 'var(--shadow-brand)' : 'none' }}
+                  >
+                    Send feedback
+                  </button>
+                </div>
+              )}
+
+              {feedbackStage === 'sent' && (
+                <div style={{ textAlign: 'center', padding: '14px 0 6px' }}>
+                  <div style={{ width: 64, height: 64, borderRadius: 999, background: 'var(--green-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px', animation: 'popIn .5s var(--ease-bounce)' }}>
+                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--green-ink)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 6L9 17l-5-5"></path>
+                    </svg>
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 6 }}>Thank you — truly.</div>
+                  <p style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.45, margin: '0 0 22px' }}>Every note helps Warmly get a little warmer.</p>
+                  <button onClick={closeFeedback} style={{ width: '100%', height: 48, borderRadius: 'var(--radius-pill)', border: 'none', background: 'var(--ink-1)', color: '#fff', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
+                    Back to the card
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <input ref={fileRef} type="file" accept="image/*" onChange={onFile} style={{ display: 'none' }} />
 
