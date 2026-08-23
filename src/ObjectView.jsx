@@ -7,6 +7,7 @@ export default function ObjectView({ d }) {
         <>
           {d.isEditing && (
             <div
+              onBlur={d.onBoxBlur}
               style={{
                 background: 'rgba(255,255,255,0.55)',
                 borderRadius: 12,
@@ -18,10 +19,21 @@ export default function ObjectView({ d }) {
                 id={d.taId}
                 value={d.text}
                 onChange={d.onTextChange}
-                onBlur={d.onTextBlur}
                 placeholder="Write something…"
                 style={d.taStyle}
               />
+              {d.showEditSign && (
+                <div style={d.editSignRowStyle}>
+                  <input
+                    id={d.editSignId}
+                    value={d.editSignValue}
+                    onChange={d.onEditSignChange}
+                    onKeyDown={d.onEditSignKey}
+                    placeholder="— Sign your name…"
+                    style={d.editSignStyle}
+                  />
+                </div>
+              )}
             </div>
           )}
           {d.notEditing && (

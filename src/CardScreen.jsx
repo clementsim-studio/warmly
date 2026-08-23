@@ -77,6 +77,13 @@ export default function CardScreen() {
   const toastTimerRef = useRef(null);
   const openTimerRef = useRef(null);
   const copyTimerRef = useRef(null);
+  // Guards against commitBox being invoked twice for the same box — the
+  // canvas's onSurfaceDown (pointerdown, fires first) and the editing box's
+  // native onBlur (fires shortly after, once focus actually leaves) can both
+  // resolve to the same id for a single click-away. A plain ref (not React
+  // state) makes the guard effective immediately, regardless of whether
+  // React has flushed the state updates from the first call yet.
+  const commitBoxRef = useRef(null);
 
   const showToast = useCallback((msg) => {
     setToast(msg);
@@ -461,6 +468,7 @@ export default function CardScreen() {
     setObjects((prev) => [...prev, obj]);
     setEditingId(id);
     setSelectedId(id);
+    setSignName('');
   };
 
   const onTextChange = (id, e) => {
@@ -471,37 +479,74 @@ export default function CardScreen() {
     el.style.height = el.scrollHeight + 'px';
   };
 
-  const finishText = async (id) => {
-    const o = objects.find((x) => x.id === id);
-    if (!o) return;
-    if (!(o.text || '').trim() && !o.cover_kind) {
-      setObjects((prev) => prev.filter((x) => x.id !== id));
-      setEditingId(null);
-      return;
+  // Persists a name adoption: sets it as this participant's signature going
+  // forward, both locally and on the signers row, and clears any lingering
+  // "sign your name" prompt on their other notes. Shared by commitBox
+  // (signing inline, while still writing) and submitSign (signing — or
+  // renaming — via the placeholder/rename flow on an already-saved note).
+  const adoptName = async (name) => {
+    setMeName(name);
+    rememberParticipantName(cardId, name);
+    setSigners((prev) =>
+      prev.some((s) => s.id === meId)
+        ? prev.map((s) => (s.id === meId ? { ...s, name } : s))
+        : [...prev, { id: meId, card_id: cardId, name, color: participantRef.current.color }]
+    );
+    setObjects((prev) => prev.map((o) => (o.owner_id === meId ? { ...o, promptSign: false } : o)));
+    showToast('Signed. Warmly, ' + name + '.');
+    try {
+      await db.setSignerName(meId, name);
+    } catch (err) {
+      console.error(err);
     }
-    if (o.pending) {
-      const { pending, editing, ...rest } = o;
-      const myTexts = objects.filter((x) => x.owner_id === meId && x.type === 'text' && !x.cover_kind);
-      const shouldPrompt = !meName && myTexts.length === 1 && myTexts[0].id === id;
-      try {
-        await db.insertObject(rest);
-        setObjects((prev) => prev.map((x) => (x.id === id ? { ...x, editing: false, pending: false, promptSign: shouldPrompt } : x)));
-        setEditingId(null);
-      } catch (err) {
+  };
+
+  // The single commit path for an editing box (D-028): called both from the
+  // box's own onBlur (focus genuinely leaving it) and from onSurfaceDown
+  // (clicking elsewhere on the canvas). Saves the text and, if the inline
+  // sign field held a name and this participant hasn't signed yet, adopts
+  // it in the same motion. Handles both regular notes and cover-template
+  // text (which never signs) — cover objects just skip the signing half.
+  const commitBox = async (id) => {
+    if (commitBoxRef.current === id) return;
+    commitBoxRef.current = id;
+    try {
+      const o = objects.find((x) => x.id === id);
+      if (!o) return;
+      if (!(o.text || '').trim() && !o.cover_kind) {
         setObjects((prev) => prev.filter((x) => x.id !== id));
         setEditingId(null);
-        if (db.isCapRejection(err)) {
-          showToast('This card’s full of signatures — time to send it');
-        } else {
-          console.error(err);
-          showToast('Could not save your note — try again');
-        }
+        setSignName('');
+        return;
       }
-      return;
+      const name = (signName || '').trim();
+      const adopt = !!name && !meName && !o.cover_kind;
+      const shouldPrompt = !meName && !adopt && !o.cover_kind;
+      setEditingId(null);
+      setSignName('');
+      if (o.pending) {
+        const { pending, editing, ...rest } = o;
+        try {
+          await db.insertObject(rest);
+          setObjects((prev) => prev.map((x) => (x.id === id ? { ...x, editing: false, pending: false, promptSign: shouldPrompt } : x)));
+        } catch (err) {
+          setObjects((prev) => prev.filter((x) => x.id !== id));
+          if (db.isCapRejection(err)) {
+            showToast('This card’s full of signatures — time to send it');
+          } else {
+            console.error(err);
+            showToast('Could not save your note — try again');
+          }
+          return;
+        }
+      } else {
+        setObjects((prev) => prev.map((x) => (x.id === id ? { ...x, editing: false } : x)));
+        db.updateObject(id, { text: o.text }).catch(console.error);
+      }
+      if (adopt) await adoptName(name);
+    } finally {
+      commitBoxRef.current = null;
     }
-    setObjects((prev) => prev.map((x) => (x.id === id ? { ...x, editing: false } : x)));
-    setEditingId(null);
-    db.updateObject(id, { text: o.text }).catch(console.error);
   };
 
   const startMove = (o, e) => {
@@ -554,7 +599,7 @@ export default function CardScreen() {
     e.preventDefault();
     if (showSigners) setShowSigners(false);
     if (showCoverPicker) setShowCoverPicker(false);
-    if (editingId) finishText(editingId);
+    if (editingId) commitBox(editingId);
     if (selectedId) {
       setSelectedId(null);
       if (tool === 'write' || tool === 'photo') return;
@@ -696,22 +741,10 @@ export default function CardScreen() {
   };
   const submitSign = async () => {
     const n = (signName || '').trim();
-    if (!n) {
-      setSigningId(null);
-      return;
-    }
     setSigningId(null);
     setSignName('');
-    setMeName(n);
-    rememberParticipantName(cardId, n);
-    setSigners((prev) => (prev.some((s) => s.id === meId) ? prev.map((s) => (s.id === meId ? { ...s, name: n } : s)) : [...prev, { id: meId, card_id: cardId, name: n, color: participantRef.current.color }]));
-    setObjects((prev) => prev.map((o) => (o.owner_id === meId ? { ...o, promptSign: false } : o)));
-    showToast('Signed. Warmly, ' + n + '.');
-    try {
-      await db.setSignerName(meId, n);
-    } catch (err) {
-      console.error(err);
-    }
+    if (!n) return;
+    await adoptName(n);
   };
 
   // ---- cover template -------------------------------------------------------
@@ -953,6 +986,7 @@ export default function CardScreen() {
         setObjects((prev) => prev.map((x) => (x.id === o.id ? { ...x, editing: true } : x)));
         setEditingId(o.id);
         setSelectedId(o.id);
+        setSignName('');
       }
     };
     d.onResize = (e) => startResize(o, e);
@@ -976,9 +1010,13 @@ export default function CardScreen() {
       d.showSig = false;
       d.showPlaceholder = false;
       d.showSignInput = false;
+      d.showEditSign = false;
       d.taId = 'ta-' + o.id;
       d.onTextChange = (e) => onTextChange(o.id, e);
-      d.onTextBlur = () => finishText(o.id);
+      d.onBoxBlur = (e) => {
+        if (e.currentTarget && e.relatedTarget && e.currentTarget.contains(e.relatedTarget)) return;
+        commitBox(o.id);
+      };
     } else if (o.type === 'text') {
       const fs = o.font === 'Caveat' ? 30 : 18;
       d.style = { ...base, width: 240 * scale + 'px', transform: `rotate(${rot}deg)`, cursor: o.editing ? 'text' : mine ? 'grab' : 'default' };
@@ -988,9 +1026,13 @@ export default function CardScreen() {
       const tstyle = { fontFamily: o.font === 'Caveat' ? "'Caveat',cursive" : 'var(--font-sans)', fontSize: fs * scale + 'px', lineHeight: o.font === 'Caveat' ? 1.15 : 1.45, color: o.color, fontWeight: o.font === 'Caveat' ? 600 : 500, whiteSpace: 'pre-wrap', wordBreak: 'break-word' };
       d.textStyle = tstyle;
       d.taStyle = { ...tstyle, width: '100%', border: 'none', outline: 'none', background: 'transparent', resize: 'none', padding: 0, margin: 0, minHeight: fs * scale + 'px', overflow: 'hidden', display: 'block' };
-      const signName = mine ? meName : nameMap[o.owner_id];
-      d.showSig = !!signName && !(mine && signingId === o.id);
-      d.sigName = signName ? '— ' + signName : '';
+      // NB: named distinctly from the `signName` *state* (the sign-input
+      // draft) further down — a prior version of this code reused the name
+      // `signName` for both, which silently bound the "Your name" input's
+      // value to this (frozen) resolved name instead of the live draft.
+      const existingSignerName = mine ? meName : nameMap[o.owner_id];
+      d.showSig = !!existingSignerName && !(mine && signingId === o.id);
+      d.sigName = existingSignerName ? '— ' + existingSignerName : '';
       const canEditSig = mine && !!meName;
       const sigFam = o.font === 'Caveat' ? "'Caveat',cursive" : 'var(--font-sans)';
       const sigFs = o.font === 'Caveat' ? 25 * scale : 16 * scale;
@@ -1023,7 +1065,22 @@ export default function CardScreen() {
       d.signInputStyle = { fontFamily: sigFam, fontSize: sigFs + 'px', fontWeight: o.font === 'Caveat' ? 600 : 500, color: o.color, marginTop: 4, border: 'none', borderBottom: '1.5px dashed ' + o.color, outline: 'none', background: 'transparent', padding: '0 0 2px', width: 160 };
       d.taId = 'ta-' + o.id;
       d.onTextChange = (e) => onTextChange(o.id, e);
-      d.onTextBlur = () => finishText(o.id);
+      d.onBoxBlur = (e) => {
+        if (e.currentTarget && e.relatedTarget && e.currentTarget.contains(e.relatedTarget)) return;
+        commitBox(o.id);
+      };
+      d.showEditSign = mine && !meName;
+      d.editSignId = 'esign-' + o.id;
+      d.editSignValue = signName;
+      d.onEditSignChange = (e) => setSignName(e.target.value);
+      d.onEditSignKey = (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          commitBox(o.id);
+        }
+      };
+      d.editSignRowStyle = { marginTop: 6, paddingTop: 6, borderTop: '1px dashed color-mix(in srgb,' + o.color + ' 35%,transparent)' };
+      d.editSignStyle = { fontFamily: sigFam, fontSize: sigFs + 'px', fontWeight: o.font === 'Caveat' ? 600 : 500, color: o.color, border: 'none', outline: 'none', background: 'transparent', padding: 0, margin: 0, width: '100%', display: 'block' };
     } else if (o.type === 'photo') {
       d.style = { ...base, transform: `rotate(${rot}deg) scale(${scale})`, cursor: mine ? 'grab' : 'default' };
       d.photoCardStyle = { background: '#fff', padding: '12px 12px 14px', borderRadius: 8, boxShadow: 'var(--shadow-md)' };
