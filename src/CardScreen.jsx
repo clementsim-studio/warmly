@@ -1386,10 +1386,10 @@ export default function CardScreen() {
               <path d="M12 8v4l3 2"></path>
             </svg>
             <span style={{ fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.35 }}>{expiryNudgeText}</span>
-            <button onClick={() => { setShowSend(true); setShowSigners(false); setSelectedId(null); }} style={{ flexShrink: 0, height: 34, padding: '0 16px', borderRadius: 999, border: 'none', background: 'var(--ink-1)', color: '#fff', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+            <button data-nudge-act="" onClick={() => { setShowSend(true); setShowSigners(false); setSelectedId(null); }} style={{ flexShrink: 0, height: 34, padding: '0 16px', borderRadius: 999, border: 'none', background: 'var(--ink-1)', color: '#fff', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
               Download
             </button>
-            <button onClick={() => setExpiryNudgeDismissed(true)} title="Dismiss" style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 999, border: 'none', background: 'var(--sunken)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <button data-nudge-act="" onClick={() => setExpiryNudgeDismissed(true)} title="Dismiss" style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 999, border: 'none', background: 'var(--sunken)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 6L6 18M6 6l12 12"></path>
               </svg>
@@ -1443,7 +1443,7 @@ export default function CardScreen() {
             </div>
           )}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: 8, boxShadow: 'var(--shadow-lg)' }}>
+          <div data-toolpill="" style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: 8, boxShadow: 'var(--shadow-lg)' }}>
             <button onClick={() => setToolFn('select')} style={tb(tool === 'select' && !showTemplates && !showStickers && !showCoverPicker)}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2"></path>
@@ -1536,6 +1536,7 @@ export default function CardScreen() {
         <button
           onClick={openFeedback}
           data-chrome=""
+          data-fb=""
           title="Share feedback"
           style={{ position: 'absolute', bottom: 28, right: 20, zIndex: 100, display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 18px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--line)', background: 'var(--white)', color: 'var(--ink-2)', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13.5, cursor: 'pointer', boxShadow: 'var(--shadow-sm)' }}
         >

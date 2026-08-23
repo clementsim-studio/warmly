@@ -146,6 +146,36 @@ button {
 [data-print-doc] {
   display: none;
 }
+@media (max-width: 620px) {
+  [data-fb] {
+    padding: 0 !important;
+    width: 44px;
+    height: 44px;
+    justify-content: center;
+    bottom: auto !important;
+    top: 70px !important;
+    right: 16px !important;
+  }
+  [data-fb] span {
+    display: none;
+  }
+  [data-nudge-act] {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+  [data-toolpill] {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-width: calc(100vw - 24px);
+    scrollbar-width: none;
+  }
+  [data-toolpill]::-webkit-scrollbar {
+    display: none;
+  }
+  [data-toolpill] > button {
+    flex: 0 0 auto;
+  }
+}
 @media print {
   @page {
     size: A4 landscape;
