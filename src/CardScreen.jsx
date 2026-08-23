@@ -1105,8 +1105,9 @@ export default function CardScreen() {
   const showFontToggle = (tool === 'write' && face === 'inside') || (selObj && selObj.type === 'text' && !selObj.cover_kind);
   const showHint = !objects.some((o) => (o.face || 'inside') === 'inside');
 
-  const insideHtml = { __html: objectsToHTML(objects.filter((o) => (o.face || 'inside') === 'inside'), (p) => (p ? db.photoUrl(p) : null)) };
-  const coverHtml = { __html: objectsToHTML(objects.filter((o) => o.face === 'front'), (p) => (p ? db.photoUrl(p) : null)) };
+  const resolveSignerName = (ownerId) => (ownerId === meId ? meName : nameMap[ownerId]);
+  const insideHtml = { __html: objectsToHTML(objects.filter((o) => (o.face || 'inside') === 'inside'), (p) => (p ? db.photoUrl(p) : null), resolveSignerName) };
+  const coverHtml = { __html: objectsToHTML(objects.filter((o) => o.face === 'front'), (p) => (p ? db.photoUrl(p) : null), resolveSignerName) };
 
   const previewScale = () => {
     const w = (typeof window !== 'undefined' && window.innerWidth) || 1000;

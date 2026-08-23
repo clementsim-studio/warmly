@@ -11,7 +11,11 @@ export function cardDims(format) {
 
 // Renders a list of card_objects rows to a static HTML string, used for the
 // cover-lift preview, the "Preview & send" mock cards, and the print pages.
-export function objectsToHTML(list, resolveSrc) {
+// resolveSignerName maps a text object's owner_id to a display name (or
+// falsy if unsigned) — card_objects only stores owner_id, not a
+// denormalized name, so the caller must resolve it against the signers
+// they already have loaded (see CardScreen's nameMap/meId/meName).
+export function objectsToHTML(list, resolveSrc, resolveSignerName) {
   let h = '';
   list.forEach((o) => {
     const rot = o.rotation || 0;
@@ -19,7 +23,7 @@ export function objectsToHTML(list, resolveSrc) {
     if (o.type === 'text' && o.cover_kind) {
       h += `<div style="position:absolute;left:${o.x}px;top:${o.y}px;width:${o.width * sc}px;transform:rotate(${rot}deg)"><div style="font-family:${o.font};font-size:${o.fsize * sc}px;font-weight:${o.weight || 700};letter-spacing:-.02em;line-height:1.02;text-align:${o.align || 'center'};color:${o.color};white-space:pre-wrap;word-break:break-word">${esc(o.text)}</div></div>`;
     } else if (o.type === 'text') {
-      const sign = o.signerName;
+      const sign = resolveSignerName ? resolveSignerName(o.owner_id) : null;
       const fs = o.font === 'Caveat' ? 30 : 18,
         ff = o.font === 'Caveat' ? "'Caveat',cursive" : "'Inter',sans-serif",
         fw = o.font === 'Caveat' ? 600 : 500,
