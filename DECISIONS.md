@@ -42,6 +42,30 @@ A running log of the non-obvious choices made while building Warmly, and why. Ne
 
 *(Side effect, not deliberately designed: because `cards`/`signers` have no delete policy, the client can never delete an entire card or a signer identity — only individual canvas objects. Worth knowing when cleaning up test data.)*
 
+## Archived features stay in code behind a `false` flag, not deleted
+
+**Decision**: `src/lib/featureFlags.js` exports `FEATURE_MONETIZATION` and `FEATURE_PREVIEW_AND_SEND_PAGE`, both `false`. The old "Preview & send" full-page flow (mockup preview, fake email-the-card path) and the "Warmly Unlimited" upgrade dialog are still fully implemented and rendered, just gated behind `FEATURE_X && ...` at every entry point and render site, so they have no reachable path in the current build.
+
+**Why**: A 2026 design refresh (see `design_handoff_warmly/`) retired both features from the product surface but explicitly wants them recoverable later (a paid tier, and a richer print-shop mockup flow) rather than rebuilt from scratch. Flipping one constant back to `true` restores a feature exactly as it was, with no code archaeology. The alternative — deleting the code and relying on git history — makes "bring it back" a multi-file reconstruction instead of a one-line change.
+
+## Note commits (typed text + inline signing) route through one function, guarded by a ref
+
+**Decision**: `commitBox(id)` in `CardScreen.jsx` is the single path that finalizes a text box — both the communal cover-template text (no signing) and a regular note (which may also adopt the typist's name on first save). It's invoked from the box's own `onBlur` *and* from the canvas's click-away handler (`onSurfaceDown`), and is re-entrancy-guarded with a plain `useRef`, not React state.
+
+**Why**: A click away from an editing box can trigger both paths for the same object in one interaction — native `blur` (via the browser's default mousedown-driven focus change) and the canvas's `onPointerDown`-based click-away, which fires first. Two independent commit paths previously existed for this (one for cover text, one for notes); consolidating to one function means a signature cap rejection, a name-adoption, or a Supabase insert can only happen once per commit, not once per triggering event. A `useRef` guard (not `useState`) is required because it must block the second call synchronously, before React has necessarily flushed the first call's state updates.
+
+## Card lifespan (14 days) is computed client-side from `created_at`; no new column
+
+**Decision**: `archives_at = cards.created_at + 14 days`, computed in the browser wherever it's displayed (Share dialog info strip, near-expiry nudge). Nothing is written to the database for this.
+
+**Why**: The date is pure derived data — it never needs to be queried, filtered, or indexed on its own, so a stored column would just be a value that can drift out of sync with its source. The actual archival job (a scheduled task that acts on cards past this date) is separate, not-yet-built backend work; the client-side display doesn't depend on it existing.
+
+## PDF export rasterizes each face with html2canvas, then assembles a real PDF with jsPDF — `window.print()` is the fallback, not the primary path
+
+**Decision**: `downloadPdf()` renders the cover and inside faces into an off-screen, off-DOM node each, captures them via `html2canvas` at a resolution scaled to the chosen page size (capped 1×–4×), and adds both as full-page JPEGs to a `jsPDF` document sized to match. Any failure in that path falls back to the pre-existing `window.print()` flow (with the same dynamically-injected `@page` size), so a download attempt never dead-ends.
+
+**Why**: `window.print()` hands control to the browser's native print dialog — the user has to choose "Save as PDF" themselves and the result depends on browser/OS print settings, which isn't a real one-click download. html2canvas + jsPDF produce an actual `.pdf` file with `pdf.save(...)`, matching the product's "Download as PDF" promise literally. The fallback exists because rasterizing arbitrary DOM (photos, cross-origin images) can fail in ways worth not surfacing as a dead end to the user.
+
 ## Cover-template seeding is idempotent via a unique index
 
 **Decision**: `unique index card_objects_card_cover_kind_uidx on card_objects(card_id, cover_kind)`. On conflict during first-load seeding, the losing client re-fetches the winner's rows instead of erroring.

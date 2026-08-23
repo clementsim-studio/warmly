@@ -2,6 +2,26 @@
 
 Notable changes to Warmly, newest entry first. See [DECISIONS.md](./DECISIONS.md) for the reasoning behind architectural choices, not just what changed.
 
+## 2026-08-23
+
+Brought the app in line with a 2026 design refresh (`design_handoff_warmly/`) via a 12-commit sequence, each built, reviewed, and pushed separately.
+
+### Added
+- Occasion model expanded from 2 to 5 (Birthday, Farewell, Thank you, Graduation, Others), each with a literal emoji, a deliberate one-off exception to the app's otherwise SVG-only iconography (`src/lib/occasions.js`).
+- Signature cap raised from 10 to 20, reframed as a performance guardrail rather than a paywall; monetization language removed from the cap-reached copy.
+- Inline signing: typing your name while finishing a note now signs it in the same motion, instead of a separate popup after the fact.
+- 14-day card lifespan shown to users: a calm info strip in the Share dialog, and a dismissible near-expiry nudge banner with a demo toggle (in the signers popover) for previewing it without waiting two weeks.
+- A quiet "Feedback" button (bottom-right) opening a 1–5 star + optional-text dialog; auto-opens ~1.2s after a successful download, once per session.
+- Responsive behaviour under 620px: the Feedback button collapses to an icon and moves top-right; the tool pill scrolls horizontally instead of wrapping.
+- A Download dialog (A4/A5/A6 size picker) replaces the old header "Preview" button as the primary download entry point.
+- Real client-side PDF export: `html2canvas` rasterizes each face, `jsPDF` assembles a real two-page `.pdf` sized to the chosen page size — replacing `window.print()` as the primary download mechanism (new dependencies, added with explicit sign-off).
+
+### Changed
+- The old "Preview & send" full-page flow (mockup preview, fake email-the-card path) and the "Warmly Unlimited" upgrade dialog are archived behind feature flags (`src/lib/featureFlags.js`) — code stays, no reachable entry point. `window.print()` is now only a fallback if real PDF generation throws.
+
+### Fixed
+- A local variable inside the per-object descriptor builder shadowed the `signName` *state* variable, so the "Your name" rename input silently stopped reflecting what was actually typed. Renamed the local to remove the collision.
+
 ## 2026-08-09
 
 ### Added

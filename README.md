@@ -9,6 +9,7 @@ Live at: https://warmly-alpha.vercel.app
 - **Frontend**: React 18 + Vite, React Router (client-side routing)
 - **Backend**: Supabase — Postgres (data), Storage (photo uploads), Realtime (live sync via `postgres_changes`)
 - **Styling**: plain CSS, no framework (design tokens in `src/styles.css`)
+- **PDF export**: `jspdf` + `html2canvas` (client-side only — rasterizes each face, assembles a real two-page PDF)
 - **Hosting**: Vercel (static build + SPA rewrite)
 
 No server code of our own — the browser talks to Supabase directly with the anon/publishable key. The signature cap is the one thing that can't be bypassed from the client; see [DECISIONS.md](./DECISIONS.md).
