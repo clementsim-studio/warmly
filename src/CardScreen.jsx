@@ -1152,11 +1152,11 @@ export default function CardScreen() {
         </div>
 
         {/* header */}
-        <div data-chrome="" style={{ position: 'absolute', top: 16, left: 16, right: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, pointerEvents: 'none', zIndex: 100 }}>
+        <div data-chrome="" style={{ position: 'absolute', top: 16, left: 16, right: 16, display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 12, pointerEvents: 'none', zIndex: 100 }}>
           <a
             href="/"
             title="Back to Warmly"
-            style={{ display: 'flex', alignItems: 'center', gap: 9, background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: '9px 18px', boxShadow: 'var(--shadow-sm)', pointerEvents: 'auto', cursor: 'pointer', fontFamily: 'var(--font-sans)', textDecoration: 'none' }}
+            style={{ justifySelf: 'start', display: 'flex', alignItems: 'center', gap: 9, background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: '9px 18px', boxShadow: 'var(--shadow-sm)', pointerEvents: 'auto', cursor: 'pointer', fontFamily: 'var(--font-sans)', textDecoration: 'none' }}
           >
             <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
               <span style={{ width: 9, height: 9, borderRadius: 999, background: 'var(--green)' }} />
@@ -1165,7 +1165,7 @@ export default function CardScreen() {
             <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.02em', color: 'var(--ink-1)' }}>Warmly</span>
           </a>
 
-          <div style={{ position: 'absolute', left: '50%', top: 0, transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 3, background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: 4, boxShadow: 'var(--shadow-sm)', pointerEvents: 'auto' }}>
+          <div style={{ justifySelf: 'center', display: 'flex', alignItems: 'center', gap: 3, background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: 4, boxShadow: 'var(--shadow-sm)', pointerEvents: 'auto' }}>
             <button onClick={() => setCanvasFace('front')} style={faceTabStyle(face === 'front')}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="5" y="3" width="14" height="18" rx="2"></rect>
@@ -1182,7 +1182,7 @@ export default function CardScreen() {
               Content
             </button>
           </div>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8, pointerEvents: 'auto' }}>
+          <div style={{ justifySelf: 'end', position: 'relative', display: 'flex', alignItems: 'center', gap: 8, pointerEvents: 'auto' }}>
             <button onClick={() => setShowSigners((s) => !s)} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: '6px 12px 6px 10px', boxShadow: 'var(--shadow-sm)', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 {signersAvatars.map((s) => (
