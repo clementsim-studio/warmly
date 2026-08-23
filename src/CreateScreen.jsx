@@ -57,7 +57,7 @@ const primaryBtnStyle = {
 export default function CreateScreen() {
   const navigate = useNavigate();
   const [occasion, setOccasion] = useState('birthday');
-  const [recipient, setRecipient] = useState('');
+  const [recipient, setRecipient] = useState('Olivia');
   const [format, setFormat] = useState('landscape');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -183,7 +183,7 @@ export default function CreateScreen() {
           >
             Card size
           </div>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 30 }}>
             <button onClick={() => setFormat('landscape')} style={fmtCardStyle(format === 'landscape')}>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 30 }}>
                 <span style={{ width: 30, height: 20, borderRadius: 3, background: 'currentColor', opacity: 0.85, display: 'block' }} />
@@ -199,7 +199,7 @@ export default function CreateScreen() {
               <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Taller than it is wide</span>
             </button>
           </div>
-          <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: '0 0 24px' }}>
+          <p style={{ display: 'none', fontSize: 12.5, color: 'var(--ink-4)', margin: '0 0 24px' }}>
             Pick the size now — it stays fixed so everyone's messages keep their place.
           </p>
 
