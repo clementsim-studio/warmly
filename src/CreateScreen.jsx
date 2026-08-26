@@ -129,30 +129,6 @@ export default function CreateScreen() {
               marginBottom: 10,
             }}
           >
-            The occasion
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-            {OCCASION_KEYS.map((key) => (
-              <button key={key} onClick={() => setOccasion(key)} style={occStyle(occasion === key)}>
-                <span style={{ fontSize: 17, lineHeight: 1 }}>{OCCASIONS[key].emoji}</span>
-                <span>{OCCASIONS[key].label}</span>
-              </button>
-            ))}
-          </div>
-          <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: '0 0 24px' }}>
-            Just sets the greeting on the cover — you can change it any time inside the card.
-          </p>
-
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
-              color: 'var(--ink-3)',
-              marginBottom: 10,
-            }}
-          >
             Who is it for?
           </div>
           <input
@@ -174,6 +150,30 @@ export default function CreateScreen() {
               boxShadow: 'var(--shadow-xs)',
             }}
           />
+
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              color: 'var(--ink-3)',
+              marginBottom: 10,
+            }}
+          >
+            The occasion
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+            {OCCASION_KEYS.map((key) => (
+              <button key={key} onClick={() => setOccasion(key)} style={occStyle(occasion === key)}>
+                <span style={{ fontSize: 17, lineHeight: 1 }}>{OCCASIONS[key].emoji}</span>
+                <span>{OCCASIONS[key].label}</span>
+              </button>
+            ))}
+          </div>
+          <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: '0 0 24px' }}>
+            Just sets the greeting on the cover — you can change it any time inside the card.
+          </p>
 
           <div
             style={{
