@@ -76,8 +76,6 @@ export default function CardScreen() {
   const [showDownload, setShowDownload] = useState(false);
   const [printSize, setPrintSize] = useState('a5');
   const [pdfBusy, setPdfBusy] = useState(false);
-  const [expiryNudgeDismissed, setExpiryNudgeDismissed] = useState(false);
-  const [demoNearExpiry, setDemoNearExpiry] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackStage, setFeedbackStage] = useState('open');
   const [feedbackRating, setFeedbackRating] = useState(0);
@@ -1019,20 +1017,11 @@ export default function CardScreen() {
   const cov = card ? COVERS[card.cover_color] : COVERS.blue;
   const dims = card ? cardDims(card.format) : { w: 1600, h: 1150 };
 
+  // The 14-day lifespan is stated only in the Share dialog now — no
+  // near-expiry nudge and no countdown anywhere on the canvas (D-046).
   const DAY_MS = 24 * 60 * 60 * 1000;
   const archivesAt = card ? new Date(new Date(card.created_at).getTime() + 14 * DAY_MS) : null;
-  const displayArchivesAt = demoNearExpiry ? new Date(Date.now() + 2 * DAY_MS) : archivesAt;
-  const expiryDate = displayArchivesAt ? displayArchivesAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-  const daysUntilArchive = displayArchivesAt ? Math.ceil((displayArchivesAt.getTime() - Date.now()) / DAY_MS) : null;
-  const isNearExpiry = demoNearExpiry || (daysUntilArchive !== null && daysUntilArchive <= 2);
-  const showExpiryNudge = isNearExpiry && !expiryNudgeDismissed;
-  const expiryNudgeText = 'This card closes in 2 days — make sure everybody has signed, then send it to ' + (((card && card.recipient) || '').trim() || 'them') + '.';
-  const demoExpiryLabel = demoNearExpiry ? 'Demo: reset expiry to 14 days' : 'Demo: preview near-expiry nudge';
-  const toggleDemoExpiry = () => {
-    setDemoNearExpiry((v) => !v);
-    setExpiryNudgeDismissed(false);
-    setShowSigners(false);
-  };
+  const expiryDate = archivesAt ? archivesAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
 
   const nameMap = useMemo(() => {
     const m = {};
@@ -1546,31 +1535,10 @@ export default function CardScreen() {
                     </div>
                   ))}
                 </div>
-                <button onClick={toggleDemoExpiry} style={{ width: '100%', marginTop: 14, height: 32, borderRadius: 999, border: '1px dashed var(--line-strong)', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-4)' }}>
-                  {demoExpiryLabel}
-                </button>
               </div>
             )}
           </div>
         </div>
-
-        {showExpiryNudge && (
-          <div data-chrome="" style={{ position: 'absolute', top: 74, left: '50%', transform: 'translateX(-50%)', zIndex: 101, display: 'flex', alignItems: 'center', gap: 12, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: '9px 10px 9px 18px', boxShadow: 'var(--shadow-lg)', animation: 'fadeUp .3s var(--ease-out)', maxWidth: 'calc(100vw - 32px)' }}>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-              <circle cx="12" cy="12" r="9"></circle>
-              <path d="M12 8v4l3 2"></path>
-            </svg>
-            <span style={{ fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.35 }}>{expiryNudgeText}</span>
-            <button data-nudge-act="" onClick={openDownload} style={{ flexShrink: 0, height: 34, padding: '0 16px', borderRadius: 999, border: 'none', background: 'var(--ink-1)', color: '#fff', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-              Download
-            </button>
-            <button data-nudge-act="" onClick={() => setExpiryNudgeDismissed(true)} title="Dismiss" style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 999, border: 'none', background: 'var(--sunken)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 6L6 18M6 6l12 12"></path>
-              </svg>
-            </button>
-          </div>
-        )}
 
         {/* toolbar */}
         <div data-chrome="" style={{ position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, width: 'max-content', maxWidth: 'calc(100vw - 24px)' }}>
