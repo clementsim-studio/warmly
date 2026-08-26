@@ -12,11 +12,36 @@ import ObjectView from './ObjectView.jsx';
 
 const LIMIT = 20;
 
+// The mobile breakpoint has one source of truth: the `--m-mobile` custom
+// property, set by the `@media (max-width:640px)` block in styles.css. JS
+// reads that flag instead of hard-coding its own pixel value, so the query
+// and this check can never disagree (D-037).
+function isMobileView() {
+  if (typeof document === 'undefined') return false;
+  return getComputedStyle(document.documentElement).getPropertyValue('--m-mobile').trim() === '1';
+}
+
+function measuredBarPx(varName, fallback) {
+  if (typeof document === 'undefined') return fallback;
+  const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(varName));
+  return Number.isFinite(v) && v > 0 ? v : fallback;
+}
+
 function fitZoomFor(format) {
   const d = cardDims(format);
   const w = window.innerWidth || 1200,
     h = window.innerHeight || 800;
-  let z = Math.min((w - 150) / d.w, (h - 250) / d.h);
+  let z;
+  if (isMobileView()) {
+    // Fit against the real canvas window between the edge-anchored bars,
+    // not the whole viewport — fitting against the full viewport is what
+    // used to render the card at ~30% with dead space above/below it (D-031).
+    const topBar = measuredBarPx('--m-topbar', 56);
+    const bottomBar = measuredBarPx('--m-bottombar', 90);
+    z = Math.min((w - 24) / d.w, (h - topBar - bottomBar - 24) / d.h);
+  } else {
+    z = Math.min((w - 150) / d.w, (h - 250) / d.h);
+  }
   z = Math.max(0.3, Math.min(1, z));
   return Math.round(z * 100) / 100;
 }
@@ -71,6 +96,8 @@ export default function CardScreen() {
   const [signName, setSignName] = useState('');
   const [showStickers, setShowStickers] = useState(false);
   const [showSigners, setShowSigners] = useState(false);
+  const [showMore, setShowMore] = useState(false);
+  const [showFaceCoach, setShowFaceCoach] = useState(false);
   const [showSend, setShowSend] = useState(false);
   const [sendEmail, setSendEmail] = useState('');
   const [showDownload, setShowDownload] = useState(false);
@@ -107,9 +134,12 @@ export default function CardScreen() {
   const [copied, setCopied] = useState(false);
   const [panning, setPanning] = useState(false);
   const [liveTick, setLiveTick] = useState(0);
+  const [mobileView, setMobileView] = useState(() => isMobileView());
 
   const surfaceRef = useRef(null);
   const scrollRef = useRef(null);
+  const topBarRef = useRef(null);
+  const bottomBarRef = useRef(null);
   const fileRef = useRef(null);
   const gestureRef = useRef(null);
   const drawPtsRef = useRef(null);
@@ -433,6 +463,55 @@ export default function CardScreen() {
       }
     }
   }, [captionId]);
+
+  // Keeps `mobileView` in sync with the CSS breakpoint on resize (rotation,
+  // window resize, devtools). isMobileView() itself always reads the current
+  // CSS state live, so this is just what triggers a re-render when it flips.
+  useEffect(() => {
+    const onResize = () => setMobileView(isMobileView());
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // One-time coach mark teaching the Cover/Content toggle on mobile (D-032)
+  // — shown once per browser, ever, then dismissed on interaction, tap, or
+  // ~6s, whichever comes first.
+  useEffect(() => {
+    if (!mobileView) return;
+    let already;
+    try {
+      already = localStorage.getItem('warmly_face_coach');
+    } catch {
+      already = '1';
+    }
+    if (already) return;
+    setShowFaceCoach(true);
+    const t = setTimeout(dismissFaceCoach, 6000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mobileView]);
+
+  // Measures the real, current height of the edge-anchored top/bottom bars
+  // into CSS custom properties, so the canvas can be positioned against
+  // them (never clipping behind a taller bar) and fitZoomFor can fit against
+  // the real window between them, both reading the same single measurement
+  // instead of duplicating a guessed constant (D-031/D-037). A ResizeObserver
+  // is used because the bars' height genuinely varies — the bottom bar is a
+  // 1-3 row stack depending on which context row is open.
+  useEffect(() => {
+    const topEl = topBarRef.current;
+    const bottomEl = bottomBarRef.current;
+    if (!topEl && !bottomEl) return;
+    const apply = () => {
+      if (topEl) document.documentElement.style.setProperty('--m-topbar', topEl.offsetHeight + 'px');
+      if (bottomEl) document.documentElement.style.setProperty('--m-bottombar', bottomEl.offsetHeight + 'px');
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    if (topEl) ro.observe(topEl);
+    if (bottomEl) ro.observe(bottomEl);
+    return () => ro.disconnect();
+  }, []);
 
   // ---- creation helpers ------------------------------------------------------
   const createObjectOptimistic = useCallback(
@@ -848,10 +927,21 @@ export default function CardScreen() {
     reseedCover({ cover_layout: l });
   };
 
+  const dismissFaceCoach = () => {
+    if (!showFaceCoach) return;
+    setShowFaceCoach(false);
+    try {
+      localStorage.setItem('warmly_face_coach', '1');
+    } catch {
+      // ignore
+    }
+  };
+
   const setCanvasFace = (f) => {
     // Commit before leaving, never just clear editingId (D-044) — same
     // reasoning as reseedCover above.
     if (editingId) commitBox(editingId);
+    dismissFaceCoach();
     setFace(f);
     setTool((t) => (f === 'front' && t === 'write' ? 'select' : t));
     setShowStickers(false);
@@ -1361,8 +1451,27 @@ export default function CardScreen() {
     // every other tool.
     touchAction: tool === 'draw' ? 'none' : 'auto',
   };
-  const wrapStyle = { position: 'absolute', inset: 0, overflow: 'hidden', backgroundColor: '#ece8e0', backgroundImage: 'radial-gradient(circle at 50% 32%, rgba(255,255,255,.5), transparent 60%)', '--pg': cov.tint };
+  // On mobile the canvas fills exactly the window between the edge-anchored
+  // bars (never clipping behind either), using the same measured heights
+  // fitZoomFor reads (D-031). Desktop's floating chrome sits on top of a
+  // full-bleed canvas instead, so it keeps inset:0.
+  // Mobile gets a solid, edge-anchored top app bar instead of a floating
+  // pill row (D-031) — the same header controls, just docked to the edge so
+  // they can't overlap the way five independent floating pills did on a
+  // narrow viewport.
+  const headerStyle = mobileView
+    ? { position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 56, background: 'var(--white)', borderBottom: '1px solid var(--line)', padding: 'calc(8px + env(safe-area-inset-top)) 12px 8px' }
+    : { position: 'absolute', top: 16, left: 16, right: 16, display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 12, pointerEvents: 'none', zIndex: 100 };
+  const wrapStyle = mobileView
+    ? { position: 'absolute', top: 'var(--m-topbar, 56px)', bottom: 'var(--m-bottombar, 90px)', left: 0, right: 0, overflow: 'hidden', backgroundColor: '#ece8e0', backgroundImage: 'radial-gradient(circle at 50% 32%, rgba(255,255,255,.5), transparent 60%)', '--pg': cov.tint }
+    : { position: 'absolute', inset: 0, overflow: 'hidden', backgroundColor: '#ece8e0', backgroundImage: 'radial-gradient(circle at 50% 32%, rgba(255,255,255,.5), transparent 60%)', '--pg': cov.tint };
   const coverFrontStyle = { position: 'absolute', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: cov.tint, backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(20,24,29,.05) 1px, transparent 0)', backgroundSize: '26px 26px', animation: 'coverLift .76s var(--ease-out) forwards' };
+  // Mobile gets a solid, edge-anchored bottom tool bar instead of a floating
+  // column (D-031) — context rows (colour/font, stickers, templates,
+  // background) dock full-width above the tool row inside the same bar.
+  const toolbarStyle = mobileView
+    ? { position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 8, width: '100%', maxWidth: '100%', background: 'var(--white)', borderTop: '1px solid var(--line)', padding: '8px 10px calc(8px + env(safe-area-inset-bottom))' }
+    : { position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, width: 'max-content', maxWidth: 'calc(100vw - 24px)' };
 
   let liveDrawHtml = null;
   if (drawPtsRef.current && drawPtsRef.current.length > 1) {
@@ -1394,6 +1503,49 @@ export default function CardScreen() {
   const mockW = card.format === 'portrait' ? 270 : 330;
   const mockK = mockW / dims.w;
   const mockH = Math.round(dims.h * mockK);
+
+  // Shared between the desktop Signatures pill and the mobile ⋯ overflow —
+  // same popover, two different triggers/anchors.
+  const signersPopover = showSigners && (
+    <div style={{ position: 'absolute', top: 52, right: 0, width: 250, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)', padding: '16px 18px', animation: 'fadeUp .2s var(--ease-out)', zIndex: 140 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>Signatures</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: full ? 'var(--green-ink)' : 'var(--ink-3)' }}>
+          {count} / {unlimited ? '∞' : LIMIT}
+        </span>
+      </div>
+      <div style={{ height: 6, borderRadius: 999, background: 'var(--sunken)', overflow: 'hidden', marginBottom: 7 }}>
+        <div style={{ height: '100%', width: pct + '%', borderRadius: 999, background: full || unlimited ? 'var(--green)' : 'var(--brand)', transition: 'width var(--dur-slow) var(--ease-out)' }} />
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 16 }}>{capNote}.</div>
+      {FEATURE_MONETIZATION && !unlimited && (
+        <button
+          onClick={() => {
+            setShowUpgrade(true);
+            setUpgradeStage('plan');
+            setShowSigners(false);
+            setSelectedId(null);
+          }}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, width: '100%', height: 40, borderRadius: 999, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 13.5, marginBottom: 16, background: near ? 'var(--green)' : 'var(--green-soft)', color: near ? '#fff' : 'var(--green-ink)', boxShadow: near ? 'var(--shadow-brand)' : 'none' }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 3l2.4 5.3 5.6.5-4.3 3.7 1.3 5.5L12 20.6 6.9 23.5l1.3-5.5L4 14.3l5.6-.5z"></path>
+          </svg>
+          <span>{full ? 'Upgrade to add more' : 'Upgrade for unlimited'}</span>
+        </button>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 260, overflow: 'auto' }}>
+        {signersFull.map((s) => (
+          <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={s.dotStyle} />
+            <span style={s.nameStyle}>{s.name}</span>
+            {s.removed && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-4)', background: 'var(--sunken)', padding: '2px 8px', borderRadius: 999 }}>removed</span>}
+            {s.isYou && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-4)', background: 'var(--sunken)', padding: '2px 8px', borderRadius: 999 }}>you</span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -1431,26 +1583,30 @@ export default function CardScreen() {
         </div>
 
         {/* header */}
-        <div data-chrome="" style={{ position: 'absolute', top: 16, left: 16, right: 16, display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 12, pointerEvents: 'none', zIndex: 100 }}>
+        <div ref={topBarRef} data-chrome="" data-topbar="" style={headerStyle}>
           <a
             href="/"
             title="Back to Warmly"
-            style={{ justifySelf: 'start', display: 'flex', alignItems: 'center', gap: 9, background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: '9px 18px', boxShadow: 'var(--shadow-sm)', pointerEvents: 'auto', cursor: 'pointer', fontFamily: 'var(--font-sans)', textDecoration: 'none' }}
+            style={
+              mobileView
+                ? { display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, borderRadius: 999, flexShrink: 0, textDecoration: 'none' }
+                : { justifySelf: 'start', display: 'flex', alignItems: 'center', gap: 9, background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: '9px 18px', boxShadow: 'var(--shadow-sm)', pointerEvents: 'auto', cursor: 'pointer', fontFamily: 'var(--font-sans)', textDecoration: 'none' }
+            }
           >
             <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
               <span style={{ width: 9, height: 9, borderRadius: 999, background: 'var(--green)' }} />
               <span style={{ width: 9, height: 9, borderRadius: 999, background: 'var(--blue)' }} />
             </div>
-            <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.02em', color: 'var(--ink-1)' }}>Warmly</span>
+            {!mobileView && <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.02em', color: 'var(--ink-1)' }}>Warmly</span>}
           </a>
 
-          <div style={{ justifySelf: 'center', display: 'flex', alignItems: 'center', gap: 3, background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: 4, boxShadow: 'var(--shadow-sm)', pointerEvents: 'auto' }}>
+          <div style={{ position: 'relative', justifySelf: 'center', display: 'flex', alignItems: 'center', gap: 3, background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: 4, boxShadow: 'var(--shadow-sm)', pointerEvents: 'auto' }}>
             <button onClick={() => setCanvasFace('front')} style={faceTabStyle(face === 'front')}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="5" y="3" width="14" height="18" rx="2"></rect>
                 <path d="M9 7h6"></path>
               </svg>
-              Cover
+              {(!mobileView || face === 'front') && 'Cover'}
             </button>
             <button onClick={() => setCanvasFace('inside')} style={faceTabStyle(face === 'inside')}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1458,90 +1614,116 @@ export default function CardScreen() {
                 <path d="M2 6v12l10 3 10-3V6"></path>
                 <path d="M12 9v12"></path>
               </svg>
-              Content
+              {(!mobileView || face === 'inside') && 'Content'}
             </button>
-          </div>
-          <div style={{ justifySelf: 'end', position: 'relative', display: 'flex', alignItems: 'center', gap: 8, pointerEvents: 'auto' }}>
-            <button onClick={() => setShowSigners((s) => !s)} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: '6px 12px 6px 10px', boxShadow: 'var(--shadow-sm)', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                {signersAvatars.map((s) => (
-                  <div key={s.key} style={s.style}>
-                    {s.initial}
-                  </div>
-                ))}
-              </div>
-              <span style={{ fontSize: 13, color: 'var(--ink-2)', fontWeight: 600, whiteSpace: 'nowrap' }}>{signerLabel}</span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'transform var(--dur-fast) var(--ease-standard)', transform: showSigners ? 'rotate(180deg)' : 'none', flexShrink: 0 }}>
-                <path d="M6 9l6 6 6-6"></path>
-              </svg>
-            </button>
-            <button onClick={() => { setShowSend(true); setShowSigners(false); setSelectedId(null); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 40, padding: '0 16px', borderRadius: 999, border: '1px solid var(--line)', background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', color: 'var(--ink-1)', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 14, cursor: 'pointer', boxShadow: 'var(--shadow-sm)', flexShrink: 0 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="18" cy="5" r="3"></circle>
-                <circle cx="6" cy="12" r="3"></circle>
-                <circle cx="18" cy="19" r="3"></circle>
-                <path d="M8.6 13.5l6.8 4"></path>
-                <path d="M15.4 6.5l-6.8 4"></path>
-              </svg>
-              <span>Share</span>
-            </button>
-            <button
-              onClick={openDownload}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 40, padding: '0 18px', borderRadius: 999, border: 'none', background: 'var(--brand)', color: '#fff', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 14, cursor: 'pointer', boxShadow: 'var(--shadow-brand)', flexShrink: 0 }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <path d="M7 10l5 5 5-5"></path>
-                <path d="M12 15V3"></path>
-              </svg>
-              <span>Download</span>
-            </button>
-
-            {showSigners && (
-              <div style={{ position: 'absolute', top: 52, right: 0, width: 250, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)', padding: '16px 18px', animation: 'fadeUp .2s var(--ease-out)', zIndex: 140 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>Signatures</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: full ? 'var(--green-ink)' : 'var(--ink-3)' }}>
-                    {count} / {unlimited ? '∞' : LIMIT}
-                  </span>
-                </div>
-                <div style={{ height: 6, borderRadius: 999, background: 'var(--sunken)', overflow: 'hidden', marginBottom: 7 }}>
-                  <div style={{ height: '100%', width: pct + '%', borderRadius: 999, background: full || unlimited ? 'var(--green)' : 'var(--brand)', transition: 'width var(--dur-slow) var(--ease-out)' }} />
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 16 }}>{capNote}.</div>
-                {FEATURE_MONETIZATION && !unlimited && (
-                  <button
-                    onClick={() => {
-                      setShowUpgrade(true);
-                      setUpgradeStage('plan');
-                      setShowSigners(false);
-                      setSelectedId(null);
-                    }}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, width: '100%', height: 40, borderRadius: 999, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 13.5, marginBottom: 16, background: near ? 'var(--green)' : 'var(--green-soft)', color: near ? '#fff' : 'var(--green-ink)', boxShadow: near ? 'var(--shadow-brand)' : 'none' }}
-                  >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 3l2.4 5.3 5.6.5-4.3 3.7 1.3 5.5L12 20.6 6.9 23.5l1.3-5.5L4 14.3l5.6-.5z"></path>
-                    </svg>
-                    <span>{full ? 'Upgrade to add more' : 'Upgrade for unlimited'}</span>
-                  </button>
-                )}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 260, overflow: 'auto' }}>
-                  {signersFull.map((s) => (
-                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={s.dotStyle} />
-                      <span style={s.nameStyle}>{s.name}</span>
-                      {s.removed && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-4)', background: 'var(--sunken)', padding: '2px 8px', borderRadius: 999 }}>removed</span>}
-                      {s.isYou && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-4)', background: 'var(--sunken)', padding: '2px 8px', borderRadius: 999 }}>you</span>}
-                    </div>
-                  ))}
-                </div>
+            {mobileView && showFaceCoach && (
+              <div
+                onClick={dismissFaceCoach}
+                style={{ position: 'absolute', top: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)', background: 'var(--ink-1)', color: '#fff', padding: '8px 14px', borderRadius: 'var(--radius-md)', fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap', boxShadow: 'var(--shadow-lg)', zIndex: 150, cursor: 'pointer', animation: 'fadeUp .3s var(--ease-out)' }}
+              >
+                Your card has two sides · Tap to flip
               </div>
             )}
           </div>
+
+          {mobileView ? (
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button onClick={() => { setShowSend(true); setShowSigners(false); setShowMore(false); setSelectedId(null); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 12px', borderRadius: 999, border: '1px solid var(--line)', background: 'var(--white)', color: 'var(--ink-1)', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <path d="M8.6 13.5l6.8 4"></path>
+                  <path d="M15.4 6.5l-6.8 4"></path>
+                </svg>
+                <span>Share</span>
+              </button>
+              <button onClick={() => { openDownload(); setShowMore(false); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 12px', borderRadius: 999, border: 'none', background: 'var(--brand)', color: '#fff', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <path d="M7 10l5 5 5-5"></path>
+                  <path d="M12 15V3"></path>
+                </svg>
+                <span>Download</span>
+              </button>
+              <button
+                onClick={() => setShowMore((s) => !s)}
+                title="More"
+                style={{ position: 'relative', width: 36, height: 36, borderRadius: 999, border: '1px solid var(--line)', background: showMore ? 'var(--ink-1)' : 'var(--white)', color: showMore ? '#fff' : 'var(--ink-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="5" cy="12" r="1.6"></circle>
+                  <circle cx="12" cy="12" r="1.6"></circle>
+                  <circle cx="19" cy="12" r="1.6"></circle>
+                </svg>
+                {count > 0 && (
+                  <span style={{ position: 'absolute', top: -3, right: -3, minWidth: 16, height: 16, borderRadius: 999, background: 'var(--brand)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', border: '1.5px solid var(--white)' }}>{count}</span>
+                )}
+              </button>
+
+              {showMore && (
+                <div style={{ position: 'absolute', top: 44, right: 0, width: 190, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)', padding: 6, zIndex: 140, animation: 'fadeUp .2s var(--ease-out)' }}>
+                  <button
+                    onClick={() => { setShowSigners(true); setShowMore(false); }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 600, color: 'var(--ink-1)' }}
+                  >
+                    <span>Signatures</span>
+                    <span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600 }}>{unlimited ? count : `${count}/${LIMIT}`}</span>
+                  </button>
+                  <button
+                    onClick={() => { setShowMore(false); openFeedback(); }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 600, color: 'var(--ink-1)' }}
+                  >
+                    Feedback
+                  </button>
+                </div>
+              )}
+              {signersPopover}
+            </div>
+          ) : (
+            <div style={{ justifySelf: 'end', position: 'relative', display: 'flex', alignItems: 'center', gap: 8, pointerEvents: 'auto' }}>
+              <button onClick={() => setShowSigners((s) => !s)} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: '6px 12px 6px 10px', boxShadow: 'var(--shadow-sm)', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  {signersAvatars.map((s) => (
+                    <div key={s.key} style={s.style}>
+                      {s.initial}
+                    </div>
+                  ))}
+                </div>
+                <span style={{ fontSize: 13, color: 'var(--ink-2)', fontWeight: 600, whiteSpace: 'nowrap' }}>{signerLabel}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'transform var(--dur-fast) var(--ease-standard)', transform: showSigners ? 'rotate(180deg)' : 'none', flexShrink: 0 }}>
+                  <path d="M6 9l6 6 6-6"></path>
+                </svg>
+              </button>
+              <button onClick={() => { setShowSend(true); setShowSigners(false); setSelectedId(null); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 40, padding: '0 16px', borderRadius: 999, border: '1px solid var(--line)', background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', color: 'var(--ink-1)', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 14, cursor: 'pointer', boxShadow: 'var(--shadow-sm)', flexShrink: 0 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <path d="M8.6 13.5l6.8 4"></path>
+                  <path d="M15.4 6.5l-6.8 4"></path>
+                </svg>
+                <span>Share</span>
+              </button>
+              <button
+                onClick={openDownload}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 40, padding: '0 18px', borderRadius: 999, border: 'none', background: 'var(--brand)', color: '#fff', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 14, cursor: 'pointer', boxShadow: 'var(--shadow-brand)', flexShrink: 0 }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <path d="M7 10l5 5 5-5"></path>
+                  <path d="M12 15V3"></path>
+                </svg>
+                <span>Download</span>
+              </button>
+
+              {signersPopover}
+            </div>
+          )}
         </div>
 
         {/* toolbar */}
-        <div data-chrome="" style={{ position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, width: 'max-content', maxWidth: 'calc(100vw - 24px)' }}>
+        <div ref={bottomBarRef} data-chrome="" data-bottombar="" style={toolbarStyle}>
           {showTemplates && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: '7px 12px', boxShadow: 'var(--shadow-lg)', animation: 'fadeUp .25s var(--ease-out)' }}>
               <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.03em', textTransform: 'uppercase', color: 'var(--ink-3)', marginRight: 2 }}>Template</span>
@@ -1662,7 +1844,7 @@ export default function CardScreen() {
           </div>
         </div>
 
-        <div data-chrome="" style={{ position: 'absolute', bottom: 28, left: 20, zIndex: 100, display: 'flex', alignItems: 'center', gap: 2, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: 6, boxShadow: 'var(--shadow-lg)' }}>
+        <div data-chrome="" data-zoompill="" style={{ position: 'absolute', bottom: 28, left: 20, zIndex: 100, display: 'flex', alignItems: 'center', gap: 2, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: 6, boxShadow: 'var(--shadow-lg)' }}>
           <button onClick={() => setZoomAt(zoom - 0.1, window.innerWidth / 2, window.innerHeight / 2)} title="Zoom out" style={{ width: 34, height: 34, borderRadius: 999, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink-1)" strokeWidth="2.2" strokeLinecap="round">
               <path d="M5 12h14"></path>
@@ -1678,18 +1860,21 @@ export default function CardScreen() {
           </button>
         </div>
 
-        <button
-          onClick={openFeedback}
-          data-chrome=""
-          data-fb=""
-          title="Share feedback"
-          style={{ position: 'absolute', bottom: 28, right: 20, zIndex: 100, display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 18px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--line)', background: 'var(--white)', color: 'var(--ink-2)', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13.5, cursor: 'pointer', boxShadow: 'var(--shadow-sm)' }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-          </svg>
-          <span>Feedback</span>
-        </button>
+        {/* Mobile reaches Feedback via the header's ⋯ overflow instead — this
+            floating pill only makes sense once chrome is floating too. */}
+        {!mobileView && (
+          <button
+            onClick={openFeedback}
+            data-chrome=""
+            title="Share feedback"
+            style={{ position: 'absolute', bottom: 28, right: 20, zIndex: 100, display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 18px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--line)', background: 'var(--white)', color: 'var(--ink-2)', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13.5, cursor: 'pointer', boxShadow: 'var(--shadow-sm)' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span>Feedback</span>
+          </button>
+        )}
 
         {showFeedback && (
           <div data-chrome="" onPointerDown={closeFeedback} style={{ position: 'absolute', inset: 0, zIndex: 345, background: 'rgba(20,24,29,.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, animation: 'fadeUp .25s var(--ease-out)', overflow: 'auto' }}>

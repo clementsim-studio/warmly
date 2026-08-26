@@ -66,6 +66,11 @@
   --dur-fast: 120ms;
   --dur-base: 200ms;
   --dur-slow: 320ms;
+
+  /* Single source of truth for the mobile breakpoint (D-037) — JS reads
+     this flag (isMobileView()) instead of duplicating the 640px literal,
+     so the query and the JS check can never disagree. */
+  --m-mobile: 0;
 }
 
 * {
@@ -146,18 +151,9 @@ button {
 [data-print-doc] {
   display: none;
 }
-@media (max-width: 620px) {
-  [data-fb] {
-    padding: 0 !important;
-    width: 44px;
-    height: 44px;
-    justify-content: center;
-    bottom: auto !important;
-    top: 70px !important;
-    right: 16px !important;
-  }
-  [data-fb] span {
-    display: none;
+@media (max-width: 640px) {
+  :root {
+    --m-mobile: 1;
   }
   [data-toolpill] {
     flex-wrap: nowrap;
@@ -170,6 +166,11 @@ button {
   }
   [data-toolpill] > button {
     flex: 0 0 auto;
+  }
+  /* Edge-anchored bars replace the desktop zoom pill's floating position
+     (D-031) — pinch/native gestures are the mobile zoom control instead. */
+  [data-zoompill] {
+    display: none;
   }
 }
 @media print {
