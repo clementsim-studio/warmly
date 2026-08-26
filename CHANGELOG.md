@@ -7,8 +7,11 @@ Notable changes to Warmly, newest entry first. See [DECISIONS.md](./DECISIONS.md
 ### Added
 - Feedback submissions are now actually stored, not just shown as a local thank-you screen: a new `feedback` table (`supabase/migrations/0006_feedback.sql`) records rating, comment, signer_id, a salted hash of the submitter's IP, and their country (from Vercel's geo headers). Written through a new serverless function, `api/feedback.js` — the project's first server code — since the table is unreachable from the browser (RLS enabled, no client policies at all). Repeat submissions from the same signer on the same card are allowed by design; nothing is deduplicated at write time.
 
+### Fixed
+- **`api/feedback.js` failed with `permission denied for table signers` (42501).** Root cause: migration `0001_init.sql` granted table privileges to `anon`/`authenticated` only — `service_role` (used by the new serverless function) was never granted `select`/`insert`/`update`/`delete` on any table. Bypassing RLS and holding the underlying table grant are two independent things in Postgres; `service_role` does the former by default but this project's Supabase instance doesn't do the latter automatically. Same category of gotcha as the original anon-role GRANT issue below. Fixed in `supabase/migrations/0007_service_role_grants.sql`, which also adds an `alter default privileges` rule so this can't recur for any table created from now on.
+
 ### Notes
-- **Migration not yet run**: `0006_feedback.sql` needs to be applied in the Supabase SQL Editor.
+- **Migrations not yet run**: `0006_feedback.sql` and `0007_service_role_grants.sql` need to be applied in the Supabase SQL Editor.
 - **New Vercel env vars needed**: `SUPABASE_SERVICE_ROLE_KEY` and `IP_HASH_SALT` (server-side only — see `.env.example`), or `api/feedback.js` will fail with `server_misconfigured`.
 
 ## 2026-08-24
