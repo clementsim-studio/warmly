@@ -2,6 +2,30 @@
 
 Notable changes to Warmly, newest entry first. See [DECISIONS.md](./DECISIONS.md) for the reasoning behind architectural choices, not just what changed.
 
+## 2026-08-27
+
+Third design handoff (`design_handoff_warmly/`, D-030 → D-046) — a set of real, confirmed bugs the new "Hard-won constraints" section flagged, plus a full mobile layout rebuild. No backend/migration changes this round — frontend only.
+
+### Fixed
+- **Canvas scaling now uses `transform`, never CSS `zoom`.** `zoom`'s effect on `getBoundingClientRect()` is inconsistent across engines (iOS in particular), which collapsed new text/strokes toward the canvas's top-left at non-1.0 zoom. The surface now has a layout-sized wrapper (`data-surfacebox`) plus a `transform: scale()` element inside it (D-041).
+- **Switching Cover/Content, re-templating the cover, or opening Background no longer strands an uncloseable white edit box.** Render decisions used to read a per-object `editing` flag while control flow read the separate `editingId` state; three places cleared `editingId` without committing first. `editingId` is now the sole source of truth (D-044).
+- **Drawing on a touch device works.** The canvas never set `touch-action` while Draw was active, so a scroll-container ancestor could claim the gesture before any `pointermove` fired. Scoped `touch-action:none` to Draw, plus `pointercancel` now commits an in-progress stroke instead of hanging it (D-039/D-040).
+- New text now appears at the centre of the visible canvas rather than the raw tap point — precise tap placement was never reliable across mobile engines (D-034).
+
+### Added
+- **Mobile (≤640px) card screen rebuilt**: solid edge-anchored top/bottom bars replace the floating-pill chrome, with real bar heights measured into CSS custom properties so the canvas never clips behind either. Signatures + Feedback moved into a "⋯" overflow menu; the Cover/Content toggle shows a label only on its active segment, plus a one-time coach mark on first visit. Zoom pill hidden (pinch instead). Breakpoint has one source of truth (`--m-mobile`, read by JS instead of a duplicated pixel literal) (D-031/D-032/D-037).
+- **Zoom-to-write**: on a phone, if the canvas is currently too small to write legibly (effective scale < ~0.7), starting or re-opening a note zooms in to 0.85 and eases back to the previous zoom on commit. Desktop is unaffected at any window size (D-035).
+
+### Removed
+- The near-expiry nudge banner and its demo toggle — the 14-day lifespan is now stated only once, in the Share dialog (D-046).
+
+### Changed
+- Start screen: "Who is it for?" now comes before "The occasion".
+
+### Notes
+- Zoom-to-write re-centres on the current viewport, not precisely on an off-screen note being re-edited — a known simplification, not a bug.
+- None of this has been checked in an actual browser (see CLAUDE.md workflow) — verify the mobile layout, drawing on a real touch device, and the editingId fix's three trigger paths before trusting them.
+
 ## 2026-08-26
 
 ### Added
