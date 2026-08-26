@@ -11,8 +11,11 @@ Live at: https://warmly-alpha.vercel.app
 - **Styling**: plain CSS, no framework (design tokens in `src/styles.css`)
 - **PDF export**: `jspdf` + `html2canvas` (client-side only — rasterizes each face, assembles a real two-page PDF)
 - **Hosting**: Vercel (static build + SPA rewrite)
+- **Server code**: one Vercel serverless function, `api/feedback.js` — the only write path for the `feedback` table (see below)
 
-No server code of our own — the browser talks to Supabase directly with the anon/publishable key. The signature cap is the one thing that can't be bypassed from the client; see [DECISIONS.md](./DECISIONS.md).
+The browser talks to Supabase directly with the anon/publishable key for every table except `feedback`, which has no client-facing RLS policies at all and can only be written through `api/feedback.js` (it needs the real request IP and Vercel's geo headers, neither of which exist client-side). The signature cap, the 14-day lifespan, and the daily card-creation limit are all enforced by Postgres triggers that can't be bypassed from the client; see [DECISIONS.md](./DECISIONS.md).
+
+`api/feedback.js` needs two server-only environment variables set in Vercel (not prefixed `VITE_`, so they never reach the browser bundle) — see `.env.example`: `SUPABASE_SERVICE_ROLE_KEY` and `IP_HASH_SALT`.
 
 ## Project structure
 
@@ -30,9 +33,12 @@ src/
     canvasHtml.js        Cover-template seeding + static HTML rendering (used for
                          the print/preview mock and PDF export)
     stickers.js          Sticker SVGs + cover color palette
+api/
+  feedback.js            Serverless function: the one write path for the feedback table
 supabase/
   migrations/0001_init.sql   Full schema: tables, RLS policies, signature-cap
                               trigger, storage bucket + policies
+  migrations/0002-0006      Later schema changes — see each file's own comment
 vercel.json             SPA rewrite so /c/:id and /share/:id don't 404 on reload
 ```
 

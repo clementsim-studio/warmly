@@ -2,6 +2,15 @@
 
 Notable changes to Warmly, newest entry first. See [DECISIONS.md](./DECISIONS.md) for the reasoning behind architectural choices, not just what changed.
 
+## 2026-08-26
+
+### Added
+- Feedback submissions are now actually stored, not just shown as a local thank-you screen: a new `feedback` table (`supabase/migrations/0006_feedback.sql`) records rating, comment, signer_id, a salted hash of the submitter's IP, and their country (from Vercel's geo headers). Written through a new serverless function, `api/feedback.js` — the project's first server code — since the table is unreachable from the browser (RLS enabled, no client policies at all). Repeat submissions from the same signer on the same card are allowed by design; nothing is deduplicated at write time.
+
+### Notes
+- **Migration not yet run**: `0006_feedback.sql` needs to be applied in the Supabase SQL Editor.
+- **New Vercel env vars needed**: `SUPABASE_SERVICE_ROLE_KEY` and `IP_HASH_SALT` (server-side only — see `.env.example`), or `api/feedback.js` will fail with `server_misconfigured`.
+
 ## 2026-08-24
 
 ### Added
@@ -9,7 +18,7 @@ Notable changes to Warmly, newest entry first. See [DECISIONS.md](./DECISIONS.md
 - System-level rate guard: at most 100 new cards per UTC day, enforced by a new trigger (`supabase/migrations/0005_daily_card_limit.sql`). `CreateScreen` shows a graceful "Warmly's at capacity for today — try again tomorrow" message on rejection instead of the generic creation-failed error.
 
 ### Notes
-- **Migrations not yet run**: `0004_card_lifespan.sql` and `0005_daily_card_limit.sql` need to be applied in the Supabase SQL Editor, same as the still-pending `0002_occasions.sql` and `0003_signature_cap_20.sql`.
+- All four migrations above (`0002`–`0005`) have been applied.
 
 ## 2026-08-23
 

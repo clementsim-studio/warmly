@@ -83,6 +83,7 @@ export default function CardScreen() {
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackDone, setFeedbackDone] = useState(false);
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [upgradeStage, setUpgradeStage] = useState('plan');
   const [payCard, setPayCard] = useState('');
@@ -886,13 +887,27 @@ export default function CardScreen() {
     setFeedbackRating(0);
     setFeedbackText('');
   };
-  const submitFeedback = () => {
+  const submitFeedback = async () => {
     if (!feedbackRating) {
       showToast('Pick a rating first');
       return;
     }
-    setFeedbackStage('sent');
-    setFeedbackDone(true);
+    if (feedbackSubmitting) return;
+    setFeedbackSubmitting(true);
+    try {
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cardId, signerId: meId, rating: feedbackRating, comment: feedbackText }),
+      });
+      if (!res.ok) throw new Error('feedback_submit_failed');
+      setFeedbackStage('sent');
+      setFeedbackDone(true);
+    } catch (err) {
+      console.error(err);
+      showToast('Could not send feedback — try again');
+    }
+    setFeedbackSubmitting(false);
   };
 
   const openDownload = () => {
@@ -1682,9 +1697,10 @@ export default function CardScreen() {
                   />
                   <button
                     onClick={submitFeedback}
-                    style={{ width: '100%', height: 50, borderRadius: 'var(--radius-pill)', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 15, background: feedbackRating ? 'var(--green)' : 'var(--sunken)', color: feedbackRating ? '#fff' : 'var(--ink-4)', boxShadow: feedbackRating ? 'var(--shadow-brand)' : 'none' }}
+                    disabled={feedbackSubmitting}
+                    style={{ width: '100%', height: 50, borderRadius: 'var(--radius-pill)', border: 'none', cursor: feedbackSubmitting ? 'default' : 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 15, opacity: feedbackSubmitting ? 0.7 : 1, background: feedbackRating ? 'var(--green)' : 'var(--sunken)', color: feedbackRating ? '#fff' : 'var(--ink-4)', boxShadow: feedbackRating ? 'var(--shadow-brand)' : 'none' }}
                   >
-                    Send feedback
+                    {feedbackSubmitting ? 'Sending…' : 'Send feedback'}
                   </button>
                 </div>
               )}
