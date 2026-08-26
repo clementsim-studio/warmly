@@ -140,6 +140,7 @@ export default function CardScreen() {
   const scrollRef = useRef(null);
   const topBarRef = useRef(null);
   const bottomBarRef = useRef(null);
+  const preWriteZoomRef = useRef(null);
   const fileRef = useRef(null);
   const gestureRef = useRef(null);
   const drawPtsRef = useRef(null);
@@ -310,6 +311,34 @@ export default function CardScreen() {
     },
     [zoom]
   );
+
+  // Zoom-to-write (D-035/D-037): on phones, if the card is currently
+  // rendered too small to write comfortably (effective scale below ~0.7),
+  // tapping to write — or re-editing an existing note — zooms in to a
+  // legible size, keeping the current view centre anchored through the
+  // zoom (setZoomAt already does exactly this). Desktop never auto-zooms,
+  // at any window size — this is a touch-ergonomics affordance, not a
+  // general legibility rule. Eases back to the zoom you had on commit.
+  const zoomToWriteIfNeeded = () => {
+    if (!mobileView || (zoom || 1) >= 0.7) return;
+    const sc = scroller();
+    if (!sc) return;
+    if (preWriteZoomRef.current == null) preWriteZoomRef.current = zoom;
+    const r = sc.getBoundingClientRect();
+    setZoomAt(0.85, r.left + sc.clientWidth / 2, r.top + sc.clientHeight / 2);
+  };
+  const restoreZoomAfterWrite = () => {
+    const z = preWriteZoomRef.current;
+    if (z == null) return;
+    preWriteZoomRef.current = null;
+    const sc = scroller();
+    if (sc) {
+      const r = sc.getBoundingClientRect();
+      setZoomAt(z, r.left + sc.clientWidth / 2, r.top + sc.clientHeight / 2);
+    } else {
+      setZoom(z);
+    }
+  };
 
   const finishDraw = useCallback(async () => {
     const pts = drawPtsRef.current || [];
@@ -673,6 +702,7 @@ export default function CardScreen() {
       if (adopt) await adoptName(name);
     } finally {
       commitBoxRef.current = null;
+      restoreZoomAfterWrite();
     }
   };
 
@@ -754,6 +784,7 @@ export default function CardScreen() {
     } else if (tool === 'write') {
       const c = viewportCenterCard();
       createText(c.x, c.y);
+      zoomToWriteIfNeeded();
     } else if (tool === 'draw') {
       drawPtsRef.current = [p];
       gestureRef.current = { type: 'draw' };
@@ -1263,6 +1294,7 @@ export default function CardScreen() {
         setEditingId(o.id);
         setSelectedId(o.id);
         setSignName('');
+        zoomToWriteIfNeeded();
       }
     };
     d.onResize = (e) => startResize(o, e);
