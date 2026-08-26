@@ -137,3 +137,15 @@ A running log of the non-obvious choices made while building Warmly, and why. Ne
 **Also decided**: no `unique(card_id, signer_id)` constraint. Repeat submissions from the same signer on the same card are allowed and just insert another row — `signer_id` and `ip_hash` are recorded on every row specifically so repeat submissions can be found later with a query, without the submission path itself blocking or deduplicating them at write time.
 
 **IP hashing**: SHA-256 of the IP **plus a server-only secret salt** (`IP_HASH_SALT`, a Vercel env var never exposed to the client). An unsalted hash of an IPv4 address is reversible by simply hashing all ~4 billion possible addresses once and building a lookup table — the salt is what actually makes `ip_hash` a one-way value instead of security theater.
+
+**Follow-up fix**: shipping this initially failed in production with `permission denied for table signers` (42501) — `service_role` bypasses RLS by default but was never granted base table privileges (migration `0001_init.sql` only granted `anon`/`authenticated`). Fixed in `supabase/migrations/0007_service_role_grants.sql`. See the next entry — this is the second time this exact category of bug has hit this project.
+
+## RLS and table GRANTs are two independent layers — always check both for a new role or table
+
+**Decision**: Whenever this project adds a new Postgres role to any table (a new client role, or a server-side role like `service_role`), grant its base table privileges (`select`/`insert`/`update`/`delete`, and `usage` on the schema) explicitly in the same migration that adds the role's first access to that table — never assume RLS configuration alone is sufficient, and never assume Supabase auto-grants a role's privileges by default.
+
+**Why**: This project has now hit the identical bug twice, in two different directions:
+- **`anon`/`authenticated`** (migration `0001_init.sql`): RLS policies were correct from the start, but the baseline roles had never been granted `select`/`insert`/`update`/`delete` on `cards`/`signers`/`card_objects` — every read and write failed with `permission denied for table cards` until the migration added explicit `grant` statements.
+- **`service_role`** (migration `0007_service_role_grants.sql`): the opposite direction — a role that bypasses RLS entirely by default was still missing the underlying table grant, so `api/feedback.js` failed with `permission denied for table signers` (42501) the first time a server-side role touched the database at all.
+
+In Postgres, RLS policies only ever restrict what an already-permitted role can see or touch — a role with **zero base grant** on a table is denied outright, before RLS is ever evaluated, regardless of whether RLS would have bypassed or permitted the operation. Two structurally different mechanisms, both required, and this codebase has now been bitten by assuming one implies the other in both directions. **Any future migration that introduces a new role, or gives an existing role its first access to a new table, should explicitly grant that role's privileges and not rely on inference from RLS state or Supabase defaults.**
