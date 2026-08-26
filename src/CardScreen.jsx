@@ -394,11 +394,17 @@ export default function CardScreen() {
     }
     window.addEventListener('pointermove', onDocMove);
     window.addEventListener('pointerup', onDocUp);
+    // A touch gesture can be cancelled mid-stroke (e.g. an interruption the
+    // OS decides takes priority) — treat that exactly like pointerup so an
+    // interrupted drawing stroke still commits instead of hanging forever
+    // with drawPtsRef still holding points nothing will ever flush (D-039).
+    window.addEventListener('pointercancel', onDocUp);
     window.addEventListener('wheel', onWheel, { passive: false });
     window.addEventListener('keydown', onKeyZoom);
     return () => {
       window.removeEventListener('pointermove', onDocMove);
       window.removeEventListener('pointerup', onDocUp);
+      window.removeEventListener('pointercancel', onDocUp);
       window.removeEventListener('wheel', onWheel);
       window.removeEventListener('keydown', onKeyZoom);
     };
@@ -1331,7 +1337,26 @@ export default function CardScreen() {
   // container gets correct, zoom-aware scroll bounds); this element supplies
   // only the *visual* scale, anchored at its own top-left.
   const surfaceBoxStyle = { position: 'relative', width: dims.w * zoom + 'px', height: dims.h * zoom + 'px', margin: 'auto', flexShrink: 0 };
-  const surfaceStyle = { position: 'absolute', left: 0, top: 0, width: dims.w + 'px', height: dims.h + 'px', transform: `scale(${zoom})`, transformOrigin: 'top left', borderRadius: 24, backgroundColor: cov.tint, backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(20,24,29,.05) 1px, transparent 0)', backgroundSize: '26px 26px', boxShadow: '0 34px 70px -26px rgba(20,24,29,.34), 0 8px 22px -10px rgba(20,24,29,.20)', cursor: tool === 'draw' ? 'crosshair' : tool === 'write' ? 'text' : tool === 'sticker' ? 'copy' : tool === 'select' ? (panning ? 'grabbing' : 'grab') : 'default' };
+  const surfaceStyle = {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: dims.w + 'px',
+    height: dims.h + 'px',
+    transform: `scale(${zoom})`,
+    transformOrigin: 'top left',
+    borderRadius: 24,
+    backgroundColor: cov.tint,
+    backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(20,24,29,.05) 1px, transparent 0)',
+    backgroundSize: '26px 26px',
+    boxShadow: '0 34px 70px -26px rgba(20,24,29,.34), 0 8px 22px -10px rgba(20,24,29,.20)',
+    cursor: tool === 'draw' ? 'crosshair' : tool === 'write' ? 'text' : tool === 'sticker' ? 'copy' : tool === 'select' ? (panning ? 'grabbing' : 'grab') : 'default',
+    // Draw needs explicit gesture ownership on touch, or the scroll
+    // container claims the drag as a scroll before any pointermove fires
+    // (D-039). Scoped to Draw only so panning/scrolling is unaffected with
+    // every other tool.
+    touchAction: tool === 'draw' ? 'none' : 'auto',
+  };
   const wrapStyle = { position: 'absolute', inset: 0, overflow: 'hidden', backgroundColor: '#ece8e0', backgroundImage: 'radial-gradient(circle at 50% 32%, rgba(255,255,255,.5), transparent 60%)', '--pg': cov.tint };
   const coverFrontStyle = { position: 'absolute', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: cov.tint, backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(20,24,29,.05) 1px, transparent 0)', backgroundSize: '26px 26px', animation: 'coverLift .76s var(--ease-out) forwards' };
 
