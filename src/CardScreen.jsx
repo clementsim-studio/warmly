@@ -640,6 +640,19 @@ export default function CardScreen() {
     db.deleteObject(id).catch(console.error);
   };
 
+  // Where a newly-written note appears: the centre of the currently visible
+  // canvas, clamped inside the card — not the tap point (D-034). You type
+  // first, then drag it where you want. Dragging, drawing and every other
+  // tool keep using the true pointer coordinate; only new text placement
+  // works this way.
+  const viewportCenterCard = () => {
+    const sc = scroller();
+    if (!sc) return { x: dims.w / 2, y: dims.h / 2 };
+    const r = sc.getBoundingClientRect();
+    const p = surfacePoint({ clientX: r.left + sc.clientWidth / 2, clientY: r.top + sc.clientHeight / 2 });
+    return { x: Math.max(0, Math.min(dims.w, p.x)), y: Math.max(0, Math.min(dims.h, p.y)) };
+  };
+
   const onSurfaceDown = (e) => {
     if (!e.target || e.target.getAttribute('data-surface') !== '1') return;
     // The canvas itself isn't focusable, so without this the browser's
@@ -661,8 +674,10 @@ export default function CardScreen() {
         gestureRef.current = { type: 'pan', sx: e.clientX, sy: e.clientY, sl: sc.scrollLeft, st: sc.scrollTop };
         setPanning(true);
       }
-    } else if (tool === 'write') createText(p.x, p.y);
-    else if (tool === 'draw') {
+    } else if (tool === 'write') {
+      const c = viewportCenterCard();
+      createText(c.x, c.y);
+    } else if (tool === 'draw') {
       drawPtsRef.current = [p];
       gestureRef.current = { type: 'draw' };
       setSelectedId(null);
