@@ -1314,7 +1314,17 @@ export default function CardScreen() {
     return { key: k, name: k, onClick: () => setCover(k), style: { width: 30, height: 30, borderRadius: 999, cursor: 'pointer', background: c.dot, border: sel ? '3px solid var(--ink-1)' : '3px solid var(--white)', boxShadow: sel ? '0 0 0 1.5px var(--ink-1)' : 'var(--shadow-xs)', outline: 'none', transform: sel ? 'scale(1.08)' : 'none', transition: 'transform var(--dur-fast) var(--ease-bounce)' } };
   });
 
-  const surfaceStyle = { position: 'relative', width: dims.w + 'px', height: dims.h + 'px', zoom, margin: 'auto', flexShrink: 0, borderRadius: 24, backgroundColor: cov.tint, backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(20,24,29,.05) 1px, transparent 0)', backgroundSize: '26px 26px', boxShadow: '0 34px 70px -26px rgba(20,24,29,.34), 0 8px 22px -10px rgba(20,24,29,.20)', cursor: tool === 'draw' ? 'crosshair' : tool === 'write' ? 'text' : tool === 'sticker' ? 'copy' : tool === 'select' ? (panning ? 'grabbing' : 'grab') : 'default' };
+  // The surface is scaled with `transform`, never CSS `zoom` — every
+  // coordinate downstream (surfacePoint, draw points, gesture math) divides
+  // by `zoom` after reading this element's getBoundingClientRect(), and
+  // `zoom`'s effect on that rect is inconsistent across engines (iOS in
+  // particular), which used to collapse taps/strokes toward the top-left at
+  // non-1.0 scale. `transform`'s contribution to the rect is well-specified
+  // everywhere. The box below supplies the *layout* size (so the scroll
+  // container gets correct, zoom-aware scroll bounds); this element supplies
+  // only the *visual* scale, anchored at its own top-left.
+  const surfaceBoxStyle = { position: 'relative', width: dims.w * zoom + 'px', height: dims.h * zoom + 'px', margin: 'auto', flexShrink: 0 };
+  const surfaceStyle = { position: 'absolute', left: 0, top: 0, width: dims.w + 'px', height: dims.h + 'px', transform: `scale(${zoom})`, transformOrigin: 'top left', borderRadius: 24, backgroundColor: cov.tint, backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(20,24,29,.05) 1px, transparent 0)', backgroundSize: '26px 26px', boxShadow: '0 34px 70px -26px rgba(20,24,29,.34), 0 8px 22px -10px rgba(20,24,29,.20)', cursor: tool === 'draw' ? 'crosshair' : tool === 'write' ? 'text' : tool === 'sticker' ? 'copy' : tool === 'select' ? (panning ? 'grabbing' : 'grab') : 'default' };
   const wrapStyle = { position: 'absolute', inset: 0, overflow: 'hidden', backgroundColor: '#ece8e0', backgroundImage: 'radial-gradient(circle at 50% 32%, rgba(255,255,255,.5), transparent 60%)', '--pg': cov.tint };
   const coverFrontStyle = { position: 'absolute', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: cov.tint, backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(20,24,29,.05) 1px, transparent 0)', backgroundSize: '26px 26px', animation: 'coverLift .76s var(--ease-out) forwards' };
 
@@ -1354,6 +1364,7 @@ export default function CardScreen() {
     <div data-app="" style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: 'var(--canvas)', fontFamily: 'var(--font-sans)', color: 'var(--ink-1)' }}>
       <div data-cardwrap="" style={wrapStyle}>
         <div data-scroll="" ref={scrollRef} style={{ position: 'absolute', inset: 0, overflow: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', padding: 56, boxSizing: 'border-box' }}>
+          <div data-surfacebox="" style={surfaceBoxStyle}>
           <div ref={surfaceRef} data-surface="1" onPointerDown={onSurfaceDown} style={surfaceStyle}>
             {face === 'inside' && showHint && (
               <div style={{ position: 'absolute', left: '50%', top: '44%', transform: 'translate(-50%,-50%)', textAlign: 'center', pointerEvents: 'none', color: 'var(--ink-4)' }}>
@@ -1379,6 +1390,7 @@ export default function CardScreen() {
                 </div>
               </div>
             )}
+          </div>
           </div>
         </div>
 
