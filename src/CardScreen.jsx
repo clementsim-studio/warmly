@@ -506,7 +506,6 @@ export default function CardScreen() {
       text: '',
       color: textColor,
       font: textFont,
-      editing: true,
       pending: true,
     };
     setObjects((prev) => [...prev, obj]);
@@ -569,10 +568,10 @@ export default function CardScreen() {
       setEditingId(null);
       setSignName('');
       if (o.pending) {
-        const { pending, editing, ...rest } = o;
+        const { pending, ...rest } = o;
         try {
           await db.insertObject(rest);
-          setObjects((prev) => prev.map((x) => (x.id === id ? { ...x, editing: false, pending: false, promptSign: shouldPrompt } : x)));
+          setObjects((prev) => prev.map((x) => (x.id === id ? { ...x, pending: false, promptSign: shouldPrompt } : x)));
         } catch (err) {
           setObjects((prev) => prev.filter((x) => x.id !== id));
           if (db.isCapRejection(err)) {
@@ -586,7 +585,6 @@ export default function CardScreen() {
           return;
         }
       } else {
-        setObjects((prev) => prev.map((x) => (x.id === id ? { ...x, editing: false } : x)));
         db.updateObject(id, { text: o.text }).catch(console.error);
       }
       if (adopt) await adoptName(name);
@@ -597,7 +595,7 @@ export default function CardScreen() {
 
   const startMove = (o, e) => {
     e.stopPropagation();
-    if (o.editing) return;
+    if (editingId === o.id) return;
     const isMine = o.owner_id === meId;
     if (!isMine && o.type !== 'sticker' && !o.communal) {
       if (card && card.unlimited) {
@@ -795,10 +793,13 @@ export default function CardScreen() {
 
   // ---- cover template -------------------------------------------------------
   const reseedCover = async (patch) => {
+    // Commit before leaving, never just clear editingId (D-044) — otherwise
+    // a note left open when the cover re-seeds keeps rendering as an
+    // uncloseable edit box, since nothing points editingId at it any more.
+    if (editingId) commitBox(editingId);
     const nextCard = { ...card, ...patch };
     setCard(nextCard);
     setSelectedId(null);
-    setEditingId(null);
     try {
       await db.updateCard(cardId, {
         cover_color: nextCard.cover_color,
@@ -829,13 +830,15 @@ export default function CardScreen() {
   };
 
   const setCanvasFace = (f) => {
+    // Commit before leaving, never just clear editingId (D-044) — same
+    // reasoning as reseedCover above.
+    if (editingId) commitBox(editingId);
     setFace(f);
     setTool((t) => (f === 'front' && t === 'write' ? 'select' : t));
     setShowStickers(false);
     setShowCoverPicker(false);
     setShowTemplates(false);
     setSelectedId(null);
-    setEditingId(null);
     setTimeout(() => setZoom(fitZoomFor(card ? card.format : 'landscape')), 0);
   };
 
@@ -1145,6 +1148,11 @@ export default function CardScreen() {
     const canEdit = mine || o.communal || fc;
     const grabbable = mine || o.type === 'sticker' || o.communal || fc;
     const selected = selectedId === o.id;
+    // `editingId` is the only source of truth for "this note is open" — never
+    // mirror it in a per-object flag, or a path that clears editingId without
+    // committing (e.g. switching faces) can leave an object rendering as open
+    // with nothing that still points at it to close it (D-044).
+    const isThisEditing = editingId === o.id;
     const scale = o.scale || 1;
     const rot = o.rotation || 0;
     const base = { position: 'absolute', left: o.x + 'px', top: o.y + 'px', transformOrigin: 'center center', zIndex: selected ? 50 : o.type === 'draw' ? 6 : 12, touchAction: 'none', WebkitUserSelect: 'none', userSelect: 'none' };
@@ -1152,7 +1160,6 @@ export default function CardScreen() {
     d.onDown = (e) => startMove(o, e);
     d.onEdit = () => {
       if (canEdit && o.type === 'text') {
-        setObjects((prev) => prev.map((x) => (x.id === o.id ? { ...x, editing: true } : x)));
         setEditingId(o.id);
         setSelectedId(o.id);
         setSignName('');
@@ -1165,14 +1172,14 @@ export default function CardScreen() {
       e.stopPropagation();
       deleteObject(o.id);
     };
-    d.showFrame = grabbable && selected && !o.editing;
+    d.showFrame = grabbable && selected && !isThisEditing;
 
     if (o.type === 'text' && o.cover_kind) {
       const cfam = o.font || 'var(--font-sans)';
-      d.style = { ...base, width: o.width * scale + 'px', transform: `rotate(${rot}deg)`, cursor: o.editing ? 'text' : 'grab' };
+      d.style = { ...base, width: o.width * scale + 'px', transform: `rotate(${rot}deg)`, cursor: isThisEditing ? 'text' : 'grab' };
       d.text = o.text;
-      d.isEditing = !!o.editing;
-      d.notEditing = !o.editing;
+      d.isEditing = isThisEditing;
+      d.notEditing = !isThisEditing;
       const ctstyle = { fontFamily: cfam, fontSize: o.fsize * scale + 'px', lineHeight: 1.02, color: o.color, fontWeight: o.weight || 700, letterSpacing: '-0.02em', textAlign: o.align || 'center', whiteSpace: 'pre-wrap', wordBreak: 'break-word' };
       d.textStyle = ctstyle;
       d.taStyle = { ...ctstyle, width: '100%', border: 'none', outline: 'none', background: 'transparent', resize: 'none', padding: 0, margin: 0, minHeight: o.fsize * scale + 'px', overflow: 'hidden', display: 'block' };
@@ -1188,10 +1195,10 @@ export default function CardScreen() {
       };
     } else if (o.type === 'text') {
       const fs = o.font === 'Caveat' ? 30 : 18;
-      d.style = { ...base, width: 240 * scale + 'px', transform: `rotate(${rot}deg)`, cursor: o.editing ? 'text' : mine ? 'grab' : 'default' };
+      d.style = { ...base, width: 240 * scale + 'px', transform: `rotate(${rot}deg)`, cursor: isThisEditing ? 'text' : mine ? 'grab' : 'default' };
       d.text = o.text;
-      d.isEditing = !!o.editing;
-      d.notEditing = !o.editing;
+      d.isEditing = isThisEditing;
+      d.notEditing = !isThisEditing;
       const tstyle = { fontFamily: o.font === 'Caveat' ? "'Caveat',cursive" : 'var(--font-sans)', fontSize: fs * scale + 'px', lineHeight: o.font === 'Caveat' ? 1.15 : 1.45, color: o.color, fontWeight: o.font === 'Caveat' ? 600 : 500, whiteSpace: 'pre-wrap', wordBreak: 'break-word' };
       d.textStyle = tstyle;
       d.taStyle = { ...tstyle, width: '100%', border: 'none', outline: 'none', background: 'transparent', resize: 'none', padding: 0, margin: 0, minHeight: fs * scale + 'px', overflow: 'hidden', display: 'block' };
@@ -1630,7 +1637,9 @@ export default function CardScreen() {
                 setTool(open ? null : tool || 'write');
                 if (open) {
                   setSelectedId(null);
-                  setEditingId(null);
+                  // Commit before leaving, never just clear editingId
+                  // (D-044) — same reasoning as reseedCover/setCanvasFace.
+                  if (editingId) commitBox(editingId);
                 }
               }}
               style={tb(showCoverPicker)}
