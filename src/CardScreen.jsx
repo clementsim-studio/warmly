@@ -134,14 +134,11 @@ export default function CardScreen() {
   const [panning, setPanning] = useState(false);
   const [liveTick, setLiveTick] = useState(0);
   const [mobileView, setMobileView] = useState(() => isMobileView());
-  const [zoomAnimating, setZoomAnimating] = useState(false);
 
   const surfaceRef = useRef(null);
   const scrollRef = useRef(null);
   const topBarRef = useRef(null);
   const bottomBarRef = useRef(null);
-  const preWriteZoomRef = useRef(null);
-  const writeZoomTargetRef = useRef(null);
   const fileRef = useRef(null);
   const gestureRef = useRef(null);
   const drawPtsRef = useRef(null);
@@ -315,94 +312,6 @@ export default function CardScreen() {
     },
     [zoom]
   );
-
-  // Centres a canvas-space point in the scroll viewport — horizontally
-  // centred, and above vertical-centre (38%) to leave room below for the
-  // keyboard/toolbar. Matches the reference prototype's
-  // scrollCardPointIntoCenter exactly: the delta between the surface's
-  // rendered rect and the scroller's rect is *measured* directly (so any
-  // padding/margin:auto centring offset is captured automatically), never
-  // assumed from a formula.
-  const scrollCardPointIntoCenter = (canvasX, canvasY, scale) => {
-    const sc = scroller();
-    const surf = surfaceRef.current;
-    if (!sc || !surf) return;
-    const f = surf.getBoundingClientRect();
-    const r = sc.getBoundingClientRect();
-    const px = f.left - r.left + sc.scrollLeft + canvasX * scale;
-    const py = f.top - r.top + sc.scrollTop + canvasY * scale;
-    sc.scrollLeft = px - sc.clientWidth / 2;
-    sc.scrollTop = py - sc.clientHeight * 0.38;
-  };
-
-  // Zoom-to-write (D-035/D-037): on phones, if the card is currently
-  // rendered too small to write comfortably (effective scale below ~0.7),
-  // tapping to write — or re-editing an existing note — zooms in to a
-  // legible size and centres the given canvas-space point. Desktop never
-  // auto-zooms, at any window size.
-  //
-  // This deliberately does NOT go through setZoomAt (which anchors an
-  // arbitrary screen point through the zoom — right for pinch/wheel, not
-  // for this) and deliberately does NOT animate the zoom itself (D-043):
-  // scrollCardPointIntoCenter must measure the *final* rendered geometry,
-  // and a still-animating transition would make that measurement read a
-  // mid-flight value, landing the scroll in the wrong place — which is
-  // exactly what produced "zooms to the card's top-left, box not visible"
-  // rather than an easing problem. zoomAnimating is only re-armed after
-  // the measurement is done, so *later* zoom changes can still ease.
-  const WRITE_ZOOM = 0.85;
-  const zoomToWriteIfNeeded = (canvasX, canvasY) => {
-    if (!mobileView || (zoom || 1) >= 0.7) return;
-    if (preWriteZoomRef.current == null) preWriteZoomRef.current = zoom;
-    // Remembered so the visualViewport listener below can re-centre on the
-    // same canvas point once the keyboard (and whatever accessory bar iOS
-    // decides to show above it) actually finishes appearing — our own
-    // zoom happens well before that, so centring only once, immediately,
-    // measures a viewport that's about to shrink further out from under it.
-    writeZoomTargetRef.current = { x: canvasX, y: canvasY };
-    setZoomAnimating(false);
-    setZoom(WRITE_ZOOM);
-    requestAnimationFrame(() => {
-      scrollCardPointIntoCenter(canvasX, canvasY, WRITE_ZOOM);
-      setZoomAnimating(true);
-    });
-  };
-  const restoreZoomAfterWrite = () => {
-    const z = preWriteZoomRef.current;
-    if (z == null) return;
-    preWriteZoomRef.current = null;
-    writeZoomTargetRef.current = null;
-    setZoomAnimating(false);
-    setZoom(z);
-    requestAnimationFrame(() => setZoomAnimating(true));
-  };
-
-  // The keyboard (and whatever accessory bar iOS decides to show above it —
-  // predictive text, autofill, etc.) doesn't finish appearing until after
-  // our own zoom-to-write already ran, and it isn't reflected by any resize
-  // of the scroll container itself — visualViewport is the API that
-  // actually fires once the keyboard has settled. Re-centre on the same
-  // canvas point then, rather than only once, immediately, against a
-  // viewport that's about to shrink further. A short debounce waits out
-  // the keyboard's own slide-in animation instead of fighting it mid-flight.
-  useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv) return;
-    let t;
-    const onResize = () => {
-      clearTimeout(t);
-      t = setTimeout(() => {
-        const target = writeZoomTargetRef.current;
-        if (target) scrollCardPointIntoCenter(target.x, target.y, WRITE_ZOOM);
-      }, 120);
-    };
-    vv.addEventListener('resize', onResize);
-    return () => {
-      clearTimeout(t);
-      vv.removeEventListener('resize', onResize);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const finishDraw = useCallback(async () => {
     const pts = drawPtsRef.current || [];
@@ -763,7 +672,6 @@ export default function CardScreen() {
       if (nameChanged) await adoptName(name, isRename);
     } finally {
       commitBoxRef.current = null;
-      restoreZoomAfterWrite();
     }
   };
 
@@ -845,7 +753,6 @@ export default function CardScreen() {
     } else if (tool === 'write') {
       const c = viewportCenterCard();
       createText(c.x, c.y);
-      zoomToWriteIfNeeded(c.x, c.y);
     } else if (tool === 'draw') {
       drawPtsRef.current = [p];
       gestureRef.current = { type: 'draw' };
@@ -1347,9 +1254,6 @@ export default function CardScreen() {
         // field in the edit box doubles as a rename control, not just a
         // first-time prompt.
         setSignName(mine ? meName || '' : '');
-        // (o.x+120, o.y+18) reconstructs the note's own centre — the
-        // inverse of createText's -120/-18 placement offset.
-        zoomToWriteIfNeeded(o.x + 120, o.y + 18);
       }
     };
     d.onResize = (e) => startResize(o, e);
@@ -1514,9 +1418,6 @@ export default function CardScreen() {
     // (D-039). Scoped to Draw only so panning/scrolling is unaffected with
     // every other tool.
     touchAction: tool === 'draw' ? 'none' : 'auto',
-    // Only the zoom-to-write in/out moment eases (D-035) — manual
-    // pinch/wheel/button zoom stays instant and 1:1 with the gesture.
-    transition: zoomAnimating ? 'transform 320ms var(--ease-out)' : 'none',
   };
   // On mobile the canvas fills exactly the window between the edge-anchored
   // bars (never clipping behind either), using the same measured heights

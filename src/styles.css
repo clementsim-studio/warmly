@@ -168,9 +168,12 @@ button {
     flex: 0 0 auto;
   }
   /* Edge-anchored bars replace the desktop zoom pill's floating position
-     (D-031) — pinch/native gestures are the mobile zoom control instead. */
+     (D-031) — pinch/native gestures are the mobile zoom control instead.
+     !important is required: the pill's inline style sets display:flex,
+     and an inline style always wins over a plain stylesheet rule of any
+     specificity — this rule silently never took effect without it. */
   [data-zoompill] {
-    display: none;
+    display: none !important;
   }
   /* Start/Share: shrink the tall hero type so less content overflows a
      phone viewport (paired with the auto-margin centring fix, D-047). */
