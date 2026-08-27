@@ -39,28 +39,8 @@ export default function ObjectView({ d }) {
           {d.notEditing && (
             <div>
               <div style={d.textStyle}>{d.text}</div>
-              {d.showSig && (
-                <div onClick={d.onEditSig} onPointerDown={d.sigDown} title={d.sigTitle} style={d.sigStyle}>
-                  {d.sigName}
-                </div>
-              )}
-              {d.showPlaceholder && (
-                <div onClick={d.onTapSign} onPointerDown={d.stop} style={d.placeholderStyle}>
-                  — Sign your name…
-                </div>
-              )}
-              {d.showSignInput && (
-                <input
-                  id={d.signId}
-                  value={d.signValue}
-                  onChange={d.onSignChange}
-                  onKeyDown={d.onSignKey}
-                  onBlur={d.onSignBlur}
-                  onPointerDown={d.stop}
-                  placeholder="Your name"
-                  style={d.signInputStyle}
-                />
-              )}
+              {d.showSig && <div style={d.sigStyle}>{d.sigName}</div>}
+              {d.showPlaceholder && <div style={d.placeholderStyle}>— Sign your name…</div>}
             </div>
           )}
         </>

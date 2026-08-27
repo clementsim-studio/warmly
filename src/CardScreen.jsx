@@ -92,7 +92,6 @@ export default function CardScreen() {
   const [tool, setTool] = useState('write');
   const [selectedId, setSelectedId] = useState(null);
   const [editingId, setEditingId] = useState(null);
-  const [signingId, setSigningId] = useState(null);
   const [signName, setSignName] = useState('');
   const [showStickers, setShowStickers] = useState(false);
   const [showSigners, setShowSigners] = useState(false);
@@ -135,12 +134,14 @@ export default function CardScreen() {
   const [panning, setPanning] = useState(false);
   const [liveTick, setLiveTick] = useState(0);
   const [mobileView, setMobileView] = useState(() => isMobileView());
+  const [zoomAnimating, setZoomAnimating] = useState(false);
 
   const surfaceRef = useRef(null);
   const scrollRef = useRef(null);
   const topBarRef = useRef(null);
   const bottomBarRef = useRef(null);
   const preWriteZoomRef = useRef(null);
+  const zoomAnimTimerRef = useRef(null);
   const fileRef = useRef(null);
   const gestureRef = useRef(null);
   const drawPtsRef = useRef(null);
@@ -319,12 +320,23 @@ export default function CardScreen() {
   // zoom (setZoomAt already does exactly this). Desktop never auto-zooms,
   // at any window size — this is a touch-ergonomics affordance, not a
   // general legibility rule. Eases back to the zoom you had on commit.
+  // A short eased transition brackets the zoom-in/zoom-out moment
+  // specifically (D-035: "mitigated by a short eased transition") — an
+  // instant snap between two very different zoom levels is what reads as
+  // "awkward". Manual pinch/button zoom stays instant/1:1, unaffected —
+  // this only wraps the two calls below.
+  const animateZoom = () => {
+    setZoomAnimating(true);
+    zoomAnimTimerRef.current && clearTimeout(zoomAnimTimerRef.current);
+    zoomAnimTimerRef.current = setTimeout(() => setZoomAnimating(false), 320);
+  };
   const zoomToWriteIfNeeded = () => {
     if (!mobileView || (zoom || 1) >= 0.7) return;
     const sc = scroller();
     if (!sc) return;
     if (preWriteZoomRef.current == null) preWriteZoomRef.current = zoom;
     const r = sc.getBoundingClientRect();
+    animateZoom();
     setZoomAt(0.85, r.left + sc.clientWidth / 2, r.top + sc.clientHeight / 2);
   };
   const restoreZoomAfterWrite = () => {
@@ -332,6 +344,7 @@ export default function CardScreen() {
     if (z == null) return;
     preWriteZoomRef.current = null;
     const sc = scroller();
+    animateZoom();
     if (sc) {
       const r = sc.getBoundingClientRect();
       setZoomAt(z, r.left + sc.clientWidth / 2, r.top + sc.clientHeight / 2);
@@ -478,12 +491,6 @@ export default function CardScreen() {
     }
   }, [editingId]);
   useEffect(() => {
-    if (signingId) {
-      const el = document.getElementById('sign-' + signingId);
-      if (el) el.focus();
-    }
-  }, [signingId]);
-  useEffect(() => {
     if (captionId) {
       const el = document.getElementById('cap-' + captionId);
       if (el) {
@@ -623,7 +630,10 @@ export default function CardScreen() {
     setObjects((prev) => [...prev, obj]);
     setEditingId(id);
     setSelectedId(id);
-    setSignName('');
+    // Pre-fill with the existing signature if there is one — the field is
+    // always present while editing (README "Signing"), doubling as a
+    // rename control once you've signed, not just a first-time prompt.
+    setSignName(meName || '');
   };
 
   const onTextChange = (id, e) => {
@@ -636,10 +646,9 @@ export default function CardScreen() {
 
   // Persists a name adoption: sets it as this participant's signature going
   // forward, both locally and on the signers row, and clears any lingering
-  // "sign your name" prompt on their other notes. Shared by commitBox
-  // (signing inline, while still writing) and submitSign (signing — or
-  // renaming — via the placeholder/rename flow on an already-saved note).
-  const adoptName = async (name) => {
+  // "sign your name" prompt on their other notes. Called from commitBox —
+  // signing/renaming only ever happens inline, inside the edit box.
+  const adoptName = async (name, isRename) => {
     setMeName(name);
     rememberParticipantName(cardId, name);
     setSigners((prev) =>
@@ -648,7 +657,7 @@ export default function CardScreen() {
         : [...prev, { id: meId, card_id: cardId, name, color: participantRef.current.color }]
     );
     setObjects((prev) => prev.map((o) => (o.owner_id === meId ? { ...o, promptSign: false } : o)));
-    showToast('Signed. Warmly, ' + name + '.');
+    showToast(isRename ? 'Signed as ' + name + '.' : 'Signed. Warmly, ' + name + '.');
     try {
       await db.setSignerName(meId, name);
     } catch (err) {
@@ -675,8 +684,9 @@ export default function CardScreen() {
         return;
       }
       const name = (signName || '').trim();
-      const adopt = !!name && !meName && !o.cover_kind;
-      const shouldPrompt = !meName && !adopt && !o.cover_kind;
+      const isRename = !!meName;
+      const nameChanged = !!name && name !== meName && !o.cover_kind;
+      const shouldPrompt = !meName && !nameChanged && !o.cover_kind;
       setEditingId(null);
       setSignName('');
       if (o.pending) {
@@ -699,7 +709,7 @@ export default function CardScreen() {
       } else {
         db.updateObject(id, { text: o.text }).catch(console.error);
       }
-      if (adopt) await adoptName(name);
+      if (nameChanged) await adoptName(name, isRename);
     } finally {
       commitBoxRef.current = null;
       restoreZoomAfterWrite();
@@ -906,18 +916,6 @@ export default function CardScreen() {
       setObjects((prev) => prev.filter((o) => o.id !== id));
       showToast('Could not upload photo');
     }
-  };
-
-  const tapSign = (id) => {
-    setSigningId(id);
-    setSignName(meName || '');
-  };
-  const submitSign = async () => {
-    const n = (signName || '').trim();
-    setSigningId(null);
-    setSignName('');
-    if (!n) return;
-    await adoptName(n);
   };
 
   // ---- cover template -------------------------------------------------------
@@ -1293,7 +1291,11 @@ export default function CardScreen() {
       if (canEdit && o.type === 'text') {
         setEditingId(o.id);
         setSelectedId(o.id);
-        setSignName('');
+        // Pre-fill with the existing signature (own notes only — cover
+        // text and others' notes never sign) so the always-present sign
+        // field in the edit box doubles as a rename control, not just a
+        // first-time prompt.
+        setSignName(mine ? meName || '' : '');
         zoomToWriteIfNeeded();
       }
     };
@@ -1317,7 +1319,6 @@ export default function CardScreen() {
       d.taStyle = { ...ctstyle, width: '100%', border: 'none', outline: 'none', background: 'transparent', resize: 'none', padding: 0, margin: 0, minHeight: o.fsize * scale + 'px', overflow: 'hidden', display: 'block' };
       d.showSig = false;
       d.showPlaceholder = false;
-      d.showSignInput = false;
       d.showEditSign = false;
       d.taId = 'ta-' + o.id;
       d.onTextChange = (e) => onTextChange(o.id, e);
@@ -1334,50 +1335,28 @@ export default function CardScreen() {
       const tstyle = { fontFamily: o.font === 'Caveat' ? "'Caveat',cursive" : 'var(--font-sans)', fontSize: fs * scale + 'px', lineHeight: o.font === 'Caveat' ? 1.15 : 1.45, color: o.color, fontWeight: o.font === 'Caveat' ? 600 : 500, whiteSpace: 'pre-wrap', wordBreak: 'break-word' };
       d.textStyle = tstyle;
       d.taStyle = { ...tstyle, width: '100%', border: 'none', outline: 'none', background: 'transparent', resize: 'none', padding: 0, margin: 0, minHeight: fs * scale + 'px', overflow: 'hidden', display: 'block' };
-      // NB: named distinctly from the `signName` *state* (the sign-input
-      // draft) further down — a prior version of this code reused the name
-      // `signName` for both, which silently bound the "Your name" input's
-      // value to this (frozen) resolved name instead of the live draft.
+      // The signature is never independently editable — tapping it opens
+      // the whole note's edit box, exactly like tapping the message, via
+      // the same onDoubleClick on the outer element. There is no separate
+      // tap-to-rename mode (that was removed, D-036 — do not reintroduce
+      // it); renaming happens through d.showEditSign inside the edit box.
       const existingSignerName = mine ? meName : nameMap[o.owner_id];
-      d.showSig = !!existingSignerName && !(mine && signingId === o.id);
+      d.showSig = !!existingSignerName;
       d.sigName = existingSignerName ? '— ' + existingSignerName : '';
-      const canEditSig = mine && !!meName;
       const sigFam = o.font === 'Caveat' ? "'Caveat',cursive" : 'var(--font-sans)';
       const sigFs = o.font === 'Caveat' ? 25 * scale : 16 * scale;
-      d.sigStyle = { fontFamily: sigFam, fontSize: sigFs + 'px', fontWeight: o.font === 'Caveat' ? 600 : 500, color: o.color, marginTop: 4, opacity: 0.9, cursor: canEditSig ? 'text' : 'default', display: 'inline-block' };
-      d.sigTitle = canEditSig ? 'Tap to change your name' : '';
-      d.sigDown = canEditSig ? (e) => e.stopPropagation() : () => {};
-      d.onEditSig = canEditSig
-        ? (e) => {
-            e.stopPropagation();
-            tapSign(o.id);
-          }
-        : () => {};
-      d.showPlaceholder = mine && !meName && o.promptSign && signingId !== o.id;
-      d.onTapSign = (e) => {
-        e.stopPropagation();
-        tapSign(o.id);
-      };
-      d.placeholderStyle = { fontFamily: sigFam, fontSize: sigFs + 'px', color: '#b9bbc1', marginTop: 4, cursor: 'text' };
-      d.showSignInput = mine && signingId === o.id;
-      d.signId = 'sign-' + o.id;
-      d.signValue = signName;
-      d.onSignChange = (e) => setSignName(e.target.value);
-      d.onSignKey = (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          submitSign();
-        }
-      };
-      d.onSignBlur = () => submitSign();
-      d.signInputStyle = { fontFamily: sigFam, fontSize: sigFs + 'px', fontWeight: o.font === 'Caveat' ? 600 : 500, color: o.color, marginTop: 4, border: 'none', borderBottom: '1.5px dashed ' + o.color, outline: 'none', background: 'transparent', padding: '0 0 2px', width: 160 };
+      d.sigStyle = { fontFamily: sigFam, fontSize: sigFs + 'px', fontWeight: o.font === 'Caveat' ? 600 : 500, color: o.color, marginTop: 4, opacity: 0.9, display: 'inline-block' };
+      d.showPlaceholder = mine && !meName && o.promptSign;
+      d.placeholderStyle = { fontFamily: sigFam, fontSize: sigFs + 'px', color: '#b9bbc1', marginTop: 4 };
       d.taId = 'ta-' + o.id;
       d.onTextChange = (e) => onTextChange(o.id, e);
       d.onBoxBlur = (e) => {
         if (e.currentTarget && e.relatedTarget && e.currentTarget.contains(e.relatedTarget)) return;
         commitBox(o.id);
       };
-      d.showEditSign = mine && !meName;
+      // Always present while editing your own note — pre-filled once
+      // signed, so it doubles as the rename control (README "Signing").
+      d.showEditSign = mine;
       d.editSignId = 'esign-' + o.id;
       d.editSignValue = signName;
       d.onEditSignChange = (e) => setSignName(e.target.value);
@@ -1482,6 +1461,9 @@ export default function CardScreen() {
     // (D-039). Scoped to Draw only so panning/scrolling is unaffected with
     // every other tool.
     touchAction: tool === 'draw' ? 'none' : 'auto',
+    // Only the zoom-to-write in/out moment eases (D-035) — manual
+    // pinch/wheel/button zoom stays instant and 1:1 with the gesture.
+    transition: zoomAnimating ? 'transform 320ms var(--ease-out)' : 'none',
   };
   // On mobile the canvas fills exactly the window between the edge-anchored
   // bars (never clipping behind either), using the same measured heights
