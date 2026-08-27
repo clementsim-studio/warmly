@@ -2,6 +2,13 @@
 
 Notable changes to Warmly, newest entry first. See [DECISIONS.md](./DECISIONS.md) for the reasoning behind architectural choices, not just what changed.
 
+## 2026-08-27 (zoom-to-write, keyboard settle)
+
+User confirmed the coordinate fix below now lands correctly, but reported a follow-on issue on a real device: iOS's own keyboard accessory bar (predictive text/autofill) finishes appearing *after* zoom-to-write has already centred the note, pushing it back out of view once the keyboard fully settles.
+
+### Fixed
+- **Zoom-to-write now re-centres once the keyboard actually settles**, not just once immediately. Listens for `window.visualViewport`'s `resize` event (which fires when the keyboard finishes animating in — the scroll container's own dimensions don't reflect it at all) and re-runs `scrollCardPointIntoCenter` against the settled viewport, debounced 120ms so it doesn't fight the keyboard's slide-in animation mid-flight.
+
 ## 2026-08-27 (zoom-to-write, corrected)
 
 Supersedes the "Zoom-to-write snapped instantly with no easing" fix and the "re-centres on the current viewport" note below — both were wrong. The user reported the underlying bug persisted (tapping to write on mobile still landed the view on the card's top-left, note not visible) after that first fix attempt; diffing directly against `design_handoff_warmly/Warmly.dc.html` (which doesn't have this bug) found the actual cause.
