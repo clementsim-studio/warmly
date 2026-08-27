@@ -1642,28 +1642,34 @@ export default function CardScreen() {
 
           {mobileView ? (
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button onClick={() => { setShowSend(true); setShowSigners(false); setShowMore(false); setSelectedId(null); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 12px', borderRadius: 999, border: '1px solid var(--line)', background: 'var(--white)', color: 'var(--ink-1)', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <button
+                onClick={() => { setShowSend(true); setShowSigners(false); setShowMore(false); setSelectedId(null); }}
+                title="Share"
+                style={{ width: 40, height: 40, padding: 0, borderRadius: 999, border: '1px solid var(--line)', background: 'var(--white)', color: 'var(--ink-1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="18" cy="5" r="3"></circle>
                   <circle cx="6" cy="12" r="3"></circle>
                   <circle cx="18" cy="19" r="3"></circle>
                   <path d="M8.6 13.5l6.8 4"></path>
                   <path d="M15.4 6.5l-6.8 4"></path>
                 </svg>
-                <span>Share</span>
               </button>
-              <button onClick={() => { openDownload(); setShowMore(false); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 12px', borderRadius: 999, border: 'none', background: 'var(--brand)', color: '#fff', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <button
+                onClick={() => { openDownload(); setShowMore(false); }}
+                title="Download"
+                style={{ width: 40, height: 40, padding: 0, borderRadius: 999, border: 'none', background: 'var(--brand)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                   <path d="M7 10l5 5 5-5"></path>
                   <path d="M12 15V3"></path>
                 </svg>
-                <span>Download</span>
               </button>
               <button
                 onClick={() => setShowMore((s) => !s)}
                 title="More"
-                style={{ position: 'relative', width: 36, height: 36, borderRadius: 999, border: '1px solid var(--line)', background: showMore ? 'var(--ink-1)' : 'var(--white)', color: showMore ? '#fff' : 'var(--ink-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+                style={{ position: 'relative', width: 40, height: 40, borderRadius: 999, border: '1px solid var(--line)', background: showMore ? 'var(--ink-1)' : 'var(--white)', color: showMore ? '#fff' : 'var(--ink-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
               >
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="5" cy="12" r="1.6"></circle>
@@ -1676,7 +1682,7 @@ export default function CardScreen() {
               </button>
 
               {showMore && (
-                <div style={{ position: 'absolute', top: 44, right: 0, width: 190, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)', padding: 6, zIndex: 140, animation: 'fadeUp .2s var(--ease-out)' }}>
+                <div style={{ position: 'absolute', top: 48, right: 0, width: 190, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)', padding: 6, zIndex: 140, animation: 'fadeUp .2s var(--ease-out)' }}>
                   <button
                     onClick={() => { setShowSigners(true); setShowMore(false); }}
                     style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 600, color: 'var(--ink-1)' }}
