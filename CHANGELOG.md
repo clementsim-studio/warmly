@@ -2,6 +2,14 @@
 
 Notable changes to Warmly, newest entry first. See [DECISIONS.md](./DECISIONS.md) for the reasoning behind architectural choices, not just what changed.
 
+## 2026-08-27 (zoom-to-write, corrected)
+
+Supersedes the "Zoom-to-write snapped instantly with no easing" fix and the "re-centres on the current viewport" note below — both were wrong. The user reported the underlying bug persisted (tapping to write on mobile still landed the view on the card's top-left, note not visible) after that first fix attempt; diffing directly against `design_handoff_warmly/Warmly.dc.html` (which doesn't have this bug) found the actual cause.
+
+### Fixed
+- **Zoom-to-write landed on the wrong part of the card.** The earlier fix reused `setZoomAt` (generic pinch/wheel zoom, which anchors whatever screen point was under the gesture) and added a CSS transition to address a separately-reported "awkward" feel. Those interacted badly: the transition meant the surface was still mid-animation on the very next frame, so any post-zoom geometry read was in-flight, not final — landing the scroll wrong. Rebuilt to match the reference exactly: a dedicated `scrollCardPointIntoCenter()` that measures the surface-vs-scroller rect delta directly (correct regardless of the scroll container's padding or the surface's `margin:auto` centring) and centres the actual *canvas-space* point (the note's placement, or its own centre when re-editing) — and the zoom-to-write transform change is never animated, matching D-043's explicit reasoning: the transition must be suppressed so the follow-up measurement reads settled geometry.
+- `setZoomAt` itself is reverted to the reference's original, simpler formula — it was never the actual cause; zoom-to-write just shouldn't have been calling it.
+
 ## 2026-08-27 (follow-up)
 
 A fourth-handoff bug-fix pass after testing the mobile rebuild below — two bugs the user caught directly, plus D-047 and a documentation-only mismatch. Frontend only, no migrations.
