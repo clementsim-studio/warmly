@@ -2,6 +2,16 @@
 
 Notable changes to Warmly, newest entry first. See [DECISIONS.md](./DECISIONS.md) for the reasoning behind architectural choices, not just what changed.
 
+## 2026-08-27 (zoom-to-write removed; zoom pill fix)
+
+The keyboard-settle fix below didn't resolve the issue on the user's actual device either, so zoom-to-write is removed entirely by explicit request rather than continuing to chase device-specific keyboard/viewport timing. Also fixed the mobile zoom pill, which was never actually hidden despite the CSS rule intended to hide it.
+
+### Removed
+- **Zoom-to-write.** Tapping to write on a very zoomed-out card no longer auto-zooms to a legible scale; pinch-zoom is the only way to zoom in on mobile now, same as before this feature existed. Removes `zoomToWriteIfNeeded`, `restoreZoomAfterWrite`, `scrollCardPointIntoCenter`, the `visualViewport` listener, and `zoomAnimating`.
+
+### Fixed
+- **The mobile zoom percentage pill was still visible**, despite `[data-zoompill]{display:none}` existing specifically to hide it. Root cause: the pill's own inline style sets `display:'flex'`, and a plain stylesheet rule — regardless of selector specificity — cannot override an inline style without `!important`. Added it, matching the other inline-style overrides already in the same media query block.
+
 ## 2026-08-27 (zoom-to-write, keyboard settle)
 
 User confirmed the coordinate fix below now lands correctly, but reported a follow-on issue on a real device: iOS's own keyboard accessory bar (predictive text/autofill) finishes appearing *after* zoom-to-write has already centred the note, pushing it back out of view once the keyboard fully settles.
