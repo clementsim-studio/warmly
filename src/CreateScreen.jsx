@@ -57,7 +57,7 @@ const primaryBtnStyle = {
 export default function CreateScreen() {
   const navigate = useNavigate();
   const [occasion, setOccasion] = useState('birthday');
-  const [recipient, setRecipient] = useState('Olivia');
+  const [recipient, setRecipient] = useState('');
   const [format, setFormat] = useState('landscape');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
