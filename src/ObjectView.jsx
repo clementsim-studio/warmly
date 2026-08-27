@@ -9,7 +9,7 @@ export default function ObjectView({ d }) {
             <div
               onBlur={d.onBoxBlur}
               style={{
-                background: 'rgba(255,255,255,0.55)',
+                background: 'var(--white)',
                 borderRadius: 12,
                 padding: '8px 10px',
                 boxShadow: '0 0 0 1.5px color-mix(in srgb,var(--blue) 40%,transparent)',
