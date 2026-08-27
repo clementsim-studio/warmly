@@ -2,6 +2,19 @@
 
 Notable changes to Warmly, newest entry first. See [DECISIONS.md](./DECISIONS.md) for the reasoning behind architectural choices, not just what changed.
 
+## 2026-08-27 (follow-up)
+
+A fourth-handoff bug-fix pass after testing the mobile rebuild below — two bugs the user caught directly, plus D-047 and a documentation-only mismatch. Frontend only, no migrations.
+
+### Fixed
+- **The signature was still independently editable.** The old tap-signature-to-rename mode (explicitly removed by D-036 in an earlier handoff) had regressed back in: `tapSign()`/`submitSign()`/`signingId` drove a standalone rename input separate from the note's own edit state. Tapping a signature now opens the whole note's edit box exactly like tapping the message — there is no signature-only edit path any more. Renaming now happens through the edit box's own sign field, which is always present for your own notes (not just before you've first signed) and pre-filled with your current name.
+- **Zoom-to-write snapped instantly with no easing**, which read as an "awkward" jump on mobile. Added a short eased transition (320ms) bracketing only the zoom-in/zoom-out moment (D-035's own stated mitigation) — manual pinch/wheel/button zoom is unaffected, still instant.
+- **Start/Share screens were cut off at the top on mobile, with no way to scroll up to reach it.** Root cause: the scroll container used `align-items:center`, which distributes overflow equally above and below — the part above the top edge is unreachable (no negative `scrollTop`). Fixed with `align-items:flex-start` + `margin:auto` on the panel instead, which only ever overflows downward. Also shrinks the hero type and container padding at ≤640px so there's less to overflow (D-047).
+- **Mobile top bar Share/Download didn't match the reference**: they were 36px labeled pills instead of 40×40 icon-only circles, which is what actually allows five controls to fit one 56px row.
+
+### Notes
+- Verifying the previous round's mobile rebuild is still pending browser testing on your end — these fixes are on top of, not instead of, that testing.
+
 ## 2026-08-27
 
 Third design handoff (`design_handoff_warmly/`, D-030 → D-046) — a set of real, confirmed bugs the new "Hard-won constraints" section flagged, plus a full mobile layout rebuild. No backend/migration changes this round — frontend only.
