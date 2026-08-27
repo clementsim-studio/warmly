@@ -141,7 +141,6 @@ export default function CardScreen() {
   const topBarRef = useRef(null);
   const bottomBarRef = useRef(null);
   const preWriteZoomRef = useRef(null);
-  const zoomAnimTimerRef = useRef(null);
   const fileRef = useRef(null);
   const gestureRef = useRef(null);
   const drawPtsRef = useRef(null);
@@ -163,19 +162,6 @@ export default function CardScreen() {
     setToast(msg);
     toastTimerRef.current && clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToast(null), 2800);
-  }, []);
-
-  // Temporary diagnostic for verifying setZoomAt's coordinate math on a
-  // real device without a tethered remote debugger — open the card with
-  // ?zoomdebug=1 and watch the console while zoom-to-write fires. Remove
-  // once confirmed; not gated behind any build flag on purpose, so it's
-  // trivial to delete.
-  useEffect(() => {
-    try {
-      window.__warmlyZoomDebug = new URLSearchParams(window.location.search).has('zoomdebug');
-    } catch {
-      // ignore
-    }
   }, []);
 
   // ---- initial load -------------------------------------------------------
@@ -305,45 +291,21 @@ export default function CardScreen() {
   const setZoomAt = useCallback((nz, cx, cy) => {
     nz = Math.max(0.3, Math.min(2, Math.round(nz * 100) / 100));
     const sc = scroller();
-    const surf = surfaceRef.current;
-    setZoom((oz) => {
-      if (!sc || !surf || nz === oz) return nz;
-      // Read the canvas-space point under (cx,cy) from the *surface's own*
-      // rect — the same element surfacePoint() measures — never inferred
-      // from the scroll container's geometry. data-scroll has padding and
-      // centres the card via margin:auto, so its rect does not coincide
-      // with the card's own box; treating "distance from the scroller's
-      // edge, plus scrollLeft" as canvas-space (the previous approach)
-      // silently assumed no such offset, and got it wrong by exactly that
-      // offset on every zoom. That's what zoom-to-write's one large jump
-      // exposed: the note lands correctly (it uses surfacePoint), but the
-      // post-zoom scroll target was computed from the wrong element.
-      const r0 = surf.getBoundingClientRect();
-      const canvasX = (cx - r0.left) / oz;
-      const canvasY = (cy - r0.top) / oz;
-      if (window.__warmlyZoomDebug) {
-        // impliedNaturalW/H should be identical every time you check this,
-        // regardless of oz — that's the actual proof transform-based
-        // scaling is consistent (CSS zoom on iOS would not have been).
-        console.log('[zoom-debug] before: oz=%s measured=%sx%s impliedNaturalW=%s impliedNaturalH=%s', oz, r0.width.toFixed(1), r0.height.toFixed(1), (r0.width / oz).toFixed(1), (r0.height / oz).toFixed(1));
-      }
-      requestAnimationFrame(() => {
-        // Re-measure after the zoom actually painted, rather than
-        // predicting the new rect from formula — robust to margin:auto
-        // centring shifting the surface by an amount that isn't a pure
-        // function of the zoom ratio.
-        const r1 = surf.getBoundingClientRect();
-        const nowX = r1.left + canvasX * nz;
-        const nowY = r1.top + canvasY * nz;
-        sc.scrollLeft += nowX - cx;
-        sc.scrollTop += nowY - cy;
-        if (window.__warmlyZoomDebug) {
-          console.log('[zoom-debug] after: nz=%s measured=%sx%s impliedNaturalW=%s impliedNaturalH=%s targetScreenPt=(%s,%s) actualScreenPt=(%s,%s) drift=(%s,%s)', nz, r1.width.toFixed(1), r1.height.toFixed(1), (r1.width / nz).toFixed(1), (r1.height / nz).toFixed(1), cx.toFixed(1), cy.toFixed(1), nowX.toFixed(1), nowY.toFixed(1), (nowX - cx).toFixed(1), (nowY - cy).toFixed(1));
-        }
-      });
-      return nz;
+    const oz = zoom || 1;
+    if (!sc || nz === oz) {
+      setZoom(nz);
+      return;
+    }
+    const r = sc.getBoundingClientRect();
+    // point under cursor, in surface (unzoomed) coords
+    const px = (sc.scrollLeft + (cx - r.left)) / oz;
+    const py = (sc.scrollTop + (cy - r.top)) / oz;
+    setZoom(nz);
+    requestAnimationFrame(() => {
+      sc.scrollLeft = px * nz - (cx - r.left);
+      sc.scrollTop = py * nz - (cy - r.top);
     });
-  }, [scroller]);
+  }, [scroller, zoom]);
 
   const surfacePoint = useCallback(
     (e) => {
@@ -353,44 +315,58 @@ export default function CardScreen() {
     [zoom]
   );
 
+  // Centres a canvas-space point in the scroll viewport — horizontally
+  // centred, and above vertical-centre (38%) to leave room below for the
+  // keyboard/toolbar. Matches the reference prototype's
+  // scrollCardPointIntoCenter exactly: the delta between the surface's
+  // rendered rect and the scroller's rect is *measured* directly (so any
+  // padding/margin:auto centring offset is captured automatically), never
+  // assumed from a formula.
+  const scrollCardPointIntoCenter = (canvasX, canvasY, scale) => {
+    const sc = scroller();
+    const surf = surfaceRef.current;
+    if (!sc || !surf) return;
+    const f = surf.getBoundingClientRect();
+    const r = sc.getBoundingClientRect();
+    const px = f.left - r.left + sc.scrollLeft + canvasX * scale;
+    const py = f.top - r.top + sc.scrollTop + canvasY * scale;
+    sc.scrollLeft = px - sc.clientWidth / 2;
+    sc.scrollTop = py - sc.clientHeight * 0.38;
+  };
+
   // Zoom-to-write (D-035/D-037): on phones, if the card is currently
   // rendered too small to write comfortably (effective scale below ~0.7),
   // tapping to write — or re-editing an existing note — zooms in to a
-  // legible size, keeping the current view centre anchored through the
-  // zoom (setZoomAt already does exactly this). Desktop never auto-zooms,
-  // at any window size — this is a touch-ergonomics affordance, not a
-  // general legibility rule. Eases back to the zoom you had on commit.
-  // A short eased transition brackets the zoom-in/zoom-out moment
-  // specifically (D-035: "mitigated by a short eased transition") — an
-  // instant snap between two very different zoom levels is what reads as
-  // "awkward". Manual pinch/button zoom stays instant/1:1, unaffected —
-  // this only wraps the two calls below.
-  const animateZoom = () => {
-    setZoomAnimating(true);
-    zoomAnimTimerRef.current && clearTimeout(zoomAnimTimerRef.current);
-    zoomAnimTimerRef.current = setTimeout(() => setZoomAnimating(false), 320);
-  };
-  const zoomToWriteIfNeeded = () => {
+  // legible size and centres the given canvas-space point. Desktop never
+  // auto-zooms, at any window size.
+  //
+  // This deliberately does NOT go through setZoomAt (which anchors an
+  // arbitrary screen point through the zoom — right for pinch/wheel, not
+  // for this) and deliberately does NOT animate the zoom itself (D-043):
+  // scrollCardPointIntoCenter must measure the *final* rendered geometry,
+  // and a still-animating transition would make that measurement read a
+  // mid-flight value, landing the scroll in the wrong place — which is
+  // exactly what produced "zooms to the card's top-left, box not visible"
+  // rather than an easing problem. zoomAnimating is only re-armed after
+  // the measurement is done, so *later* zoom changes can still ease.
+  const zoomToWriteIfNeeded = (canvasX, canvasY) => {
     if (!mobileView || (zoom || 1) >= 0.7) return;
-    const sc = scroller();
-    if (!sc) return;
     if (preWriteZoomRef.current == null) preWriteZoomRef.current = zoom;
-    const r = sc.getBoundingClientRect();
-    animateZoom();
-    setZoomAt(0.85, r.left + sc.clientWidth / 2, r.top + sc.clientHeight / 2);
+    const target = 0.85;
+    setZoomAnimating(false);
+    setZoom(target);
+    requestAnimationFrame(() => {
+      scrollCardPointIntoCenter(canvasX, canvasY, target);
+      setZoomAnimating(true);
+    });
   };
   const restoreZoomAfterWrite = () => {
     const z = preWriteZoomRef.current;
     if (z == null) return;
     preWriteZoomRef.current = null;
-    const sc = scroller();
-    animateZoom();
-    if (sc) {
-      const r = sc.getBoundingClientRect();
-      setZoomAt(z, r.left + sc.clientWidth / 2, r.top + sc.clientHeight / 2);
-    } else {
-      setZoom(z);
-    }
+    setZoomAnimating(false);
+    setZoom(z);
+    requestAnimationFrame(() => setZoomAnimating(true));
   };
 
   const finishDraw = useCallback(async () => {
@@ -834,7 +810,7 @@ export default function CardScreen() {
     } else if (tool === 'write') {
       const c = viewportCenterCard();
       createText(c.x, c.y);
-      zoomToWriteIfNeeded();
+      zoomToWriteIfNeeded(c.x, c.y);
     } else if (tool === 'draw') {
       drawPtsRef.current = [p];
       gestureRef.current = { type: 'draw' };
@@ -1336,7 +1312,9 @@ export default function CardScreen() {
         // field in the edit box doubles as a rename control, not just a
         // first-time prompt.
         setSignName(mine ? meName || '' : '');
-        zoomToWriteIfNeeded();
+        // (o.x+120, o.y+18) reconstructs the note's own centre — the
+        // inverse of createText's -120/-18 placement offset.
+        zoomToWriteIfNeeded(o.x + 120, o.y + 18);
       }
     };
     d.onResize = (e) => startResize(o, e);
