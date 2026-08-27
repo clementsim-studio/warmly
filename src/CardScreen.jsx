@@ -165,6 +165,19 @@ export default function CardScreen() {
     toastTimerRef.current = setTimeout(() => setToast(null), 2800);
   }, []);
 
+  // Temporary diagnostic for verifying setZoomAt's coordinate math on a
+  // real device without a tethered remote debugger — open the card with
+  // ?zoomdebug=1 and watch the console while zoom-to-write fires. Remove
+  // once confirmed; not gated behind any build flag on purpose, so it's
+  // trivial to delete.
+  useEffect(() => {
+    try {
+      window.__warmlyZoomDebug = new URLSearchParams(window.location.search).has('zoomdebug');
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // ---- initial load -------------------------------------------------------
   useEffect(() => {
     let alive = true;
@@ -292,14 +305,41 @@ export default function CardScreen() {
   const setZoomAt = useCallback((nz, cx, cy) => {
     nz = Math.max(0.3, Math.min(2, Math.round(nz * 100) / 100));
     const sc = scroller();
+    const surf = surfaceRef.current;
     setZoom((oz) => {
-      if (!sc || nz === oz) return nz;
-      const r = sc.getBoundingClientRect();
-      const px = (sc.scrollLeft + (cx - r.left)) / oz;
-      const py = (sc.scrollTop + (cy - r.top)) / oz;
+      if (!sc || !surf || nz === oz) return nz;
+      // Read the canvas-space point under (cx,cy) from the *surface's own*
+      // rect — the same element surfacePoint() measures — never inferred
+      // from the scroll container's geometry. data-scroll has padding and
+      // centres the card via margin:auto, so its rect does not coincide
+      // with the card's own box; treating "distance from the scroller's
+      // edge, plus scrollLeft" as canvas-space (the previous approach)
+      // silently assumed no such offset, and got it wrong by exactly that
+      // offset on every zoom. That's what zoom-to-write's one large jump
+      // exposed: the note lands correctly (it uses surfacePoint), but the
+      // post-zoom scroll target was computed from the wrong element.
+      const r0 = surf.getBoundingClientRect();
+      const canvasX = (cx - r0.left) / oz;
+      const canvasY = (cy - r0.top) / oz;
+      if (window.__warmlyZoomDebug) {
+        // impliedNaturalW/H should be identical every time you check this,
+        // regardless of oz — that's the actual proof transform-based
+        // scaling is consistent (CSS zoom on iOS would not have been).
+        console.log('[zoom-debug] before: oz=%s measured=%sx%s impliedNaturalW=%s impliedNaturalH=%s', oz, r0.width.toFixed(1), r0.height.toFixed(1), (r0.width / oz).toFixed(1), (r0.height / oz).toFixed(1));
+      }
       requestAnimationFrame(() => {
-        sc.scrollLeft = px * nz - (cx - r.left);
-        sc.scrollTop = py * nz - (cy - r.top);
+        // Re-measure after the zoom actually painted, rather than
+        // predicting the new rect from formula — robust to margin:auto
+        // centring shifting the surface by an amount that isn't a pure
+        // function of the zoom ratio.
+        const r1 = surf.getBoundingClientRect();
+        const nowX = r1.left + canvasX * nz;
+        const nowY = r1.top + canvasY * nz;
+        sc.scrollLeft += nowX - cx;
+        sc.scrollTop += nowY - cy;
+        if (window.__warmlyZoomDebug) {
+          console.log('[zoom-debug] after: nz=%s measured=%sx%s impliedNaturalW=%s impliedNaturalH=%s targetScreenPt=(%s,%s) actualScreenPt=(%s,%s) drift=(%s,%s)', nz, r1.width.toFixed(1), r1.height.toFixed(1), (r1.width / nz).toFixed(1), (r1.height / nz).toFixed(1), cx.toFixed(1), cy.toFixed(1), nowX.toFixed(1), nowY.toFixed(1), (nowX - cx).toFixed(1), (nowY - cy).toFixed(1));
+        }
       });
       return nz;
     });
