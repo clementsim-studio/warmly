@@ -141,6 +141,7 @@ export default function CardScreen() {
   const topBarRef = useRef(null);
   const bottomBarRef = useRef(null);
   const preWriteZoomRef = useRef(null);
+  const writeZoomTargetRef = useRef(null);
   const fileRef = useRef(null);
   const gestureRef = useRef(null);
   const drawPtsRef = useRef(null);
@@ -349,14 +350,20 @@ export default function CardScreen() {
   // exactly what produced "zooms to the card's top-left, box not visible"
   // rather than an easing problem. zoomAnimating is only re-armed after
   // the measurement is done, so *later* zoom changes can still ease.
+  const WRITE_ZOOM = 0.85;
   const zoomToWriteIfNeeded = (canvasX, canvasY) => {
     if (!mobileView || (zoom || 1) >= 0.7) return;
     if (preWriteZoomRef.current == null) preWriteZoomRef.current = zoom;
-    const target = 0.85;
+    // Remembered so the visualViewport listener below can re-centre on the
+    // same canvas point once the keyboard (and whatever accessory bar iOS
+    // decides to show above it) actually finishes appearing — our own
+    // zoom happens well before that, so centring only once, immediately,
+    // measures a viewport that's about to shrink further out from under it.
+    writeZoomTargetRef.current = { x: canvasX, y: canvasY };
     setZoomAnimating(false);
-    setZoom(target);
+    setZoom(WRITE_ZOOM);
     requestAnimationFrame(() => {
-      scrollCardPointIntoCenter(canvasX, canvasY, target);
+      scrollCardPointIntoCenter(canvasX, canvasY, WRITE_ZOOM);
       setZoomAnimating(true);
     });
   };
@@ -364,10 +371,38 @@ export default function CardScreen() {
     const z = preWriteZoomRef.current;
     if (z == null) return;
     preWriteZoomRef.current = null;
+    writeZoomTargetRef.current = null;
     setZoomAnimating(false);
     setZoom(z);
     requestAnimationFrame(() => setZoomAnimating(true));
   };
+
+  // The keyboard (and whatever accessory bar iOS decides to show above it —
+  // predictive text, autofill, etc.) doesn't finish appearing until after
+  // our own zoom-to-write already ran, and it isn't reflected by any resize
+  // of the scroll container itself — visualViewport is the API that
+  // actually fires once the keyboard has settled. Re-centre on the same
+  // canvas point then, rather than only once, immediately, against a
+  // viewport that's about to shrink further. A short debounce waits out
+  // the keyboard's own slide-in animation instead of fighting it mid-flight.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    let t;
+    const onResize = () => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        const target = writeZoomTargetRef.current;
+        if (target) scrollCardPointIntoCenter(target.x, target.y, WRITE_ZOOM);
+      }, 120);
+    };
+    vv.addEventListener('resize', onResize);
+    return () => {
+      clearTimeout(t);
+      vv.removeEventListener('resize', onResize);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const finishDraw = useCallback(async () => {
     const pts = drawPtsRef.current || [];
