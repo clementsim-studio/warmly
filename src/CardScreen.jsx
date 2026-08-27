@@ -1597,6 +1597,20 @@ export default function CardScreen() {
           {mobileView ? (
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8 }}>
               <button
+                onClick={() => setShowMore((s) => !s)}
+                title="More"
+                style={{ position: 'relative', width: 40, height: 40, borderRadius: 999, border: '1px solid var(--line)', background: showMore ? 'var(--ink-1)' : 'var(--white)', color: showMore ? '#fff' : 'var(--ink-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="5" cy="12" r="1.6"></circle>
+                  <circle cx="12" cy="12" r="1.6"></circle>
+                  <circle cx="19" cy="12" r="1.6"></circle>
+                </svg>
+                {count > 0 && (
+                  <span style={{ position: 'absolute', top: -3, right: -3, minWidth: 16, height: 16, borderRadius: 999, background: 'var(--brand)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', border: '1.5px solid var(--white)' }}>{count}</span>
+                )}
+              </button>
+              <button
                 onClick={() => { setShowSend(true); setShowSigners(false); setShowMore(false); setSelectedId(null); }}
                 title="Share"
                 style={{ width: 40, height: 40, padding: 0, borderRadius: 999, border: '1px solid var(--line)', background: 'var(--white)', color: 'var(--ink-1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
@@ -1620,23 +1634,9 @@ export default function CardScreen() {
                   <path d="M12 15V3"></path>
                 </svg>
               </button>
-              <button
-                onClick={() => setShowMore((s) => !s)}
-                title="More"
-                style={{ position: 'relative', width: 40, height: 40, borderRadius: 999, border: '1px solid var(--line)', background: showMore ? 'var(--ink-1)' : 'var(--white)', color: showMore ? '#fff' : 'var(--ink-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
-              >
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="5" cy="12" r="1.6"></circle>
-                  <circle cx="12" cy="12" r="1.6"></circle>
-                  <circle cx="19" cy="12" r="1.6"></circle>
-                </svg>
-                {count > 0 && (
-                  <span style={{ position: 'absolute', top: -3, right: -3, minWidth: 16, height: 16, borderRadius: 999, background: 'var(--brand)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', border: '1.5px solid var(--white)' }}>{count}</span>
-                )}
-              </button>
 
               {showMore && (
-                <div style={{ position: 'absolute', top: 48, right: 0, width: 190, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)', padding: 6, zIndex: 140, animation: 'fadeUp .2s var(--ease-out)' }}>
+                <div style={{ position: 'absolute', top: 48, left: 0, width: 190, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)', padding: 6, zIndex: 140, animation: 'fadeUp .2s var(--ease-out)' }}>
                   <button
                     onClick={() => { setShowSigners(true); setShowMore(false); }}
                     style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 600, color: 'var(--ink-1)' }}
