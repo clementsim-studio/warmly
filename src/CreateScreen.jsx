@@ -93,17 +93,18 @@ export default function CreateScreen() {
       }}
     >
       <div
+        data-startwrap=""
         style={{
           position: 'absolute',
           inset: 0,
           overflow: 'auto',
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           justifyContent: 'center',
           padding: '32px 20px',
         }}
       >
-        <div style={{ width: '100%', maxWidth: '500px', animation: 'fadeUp .5s var(--ease-out)' }}>
+        <div style={{ width: '100%', maxWidth: '500px', margin: 'auto', animation: 'fadeUp .5s var(--ease-out)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '34px' }}>
             <div style={{ display: 'flex', gap: '3px' }}>
               <span style={{ width: 12, height: 12, borderRadius: 999, background: 'var(--green)', display: 'block' }} />
@@ -112,10 +113,10 @@ export default function CreateScreen() {
             <span style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-0.02em' }}>Warmly</span>
           </div>
 
-          <h1 style={{ fontSize: 40, lineHeight: 1.05, letterSpacing: '-0.03em', fontWeight: 700, margin: '0 0 12px' }}>
+          <h1 data-starttitle="" style={{ fontSize: 40, lineHeight: 1.05, letterSpacing: '-0.03em', fontWeight: 700, margin: '0 0 12px' }}>
             Start a card everyone can sign.
           </h1>
-          <p style={{ fontSize: 17, lineHeight: 1.5, color: 'var(--ink-3)', margin: '0 0 20px', maxWidth: 420 }}>
+          <p data-startsub="" style={{ fontSize: 17, lineHeight: 1.5, color: 'var(--ink-3)', margin: '0 0 20px', maxWidth: 420 }}>
             One card, one link. Your people add a note, a doodle, a photo — from anywhere. No sign-ups, no chasing.
           </p>
 

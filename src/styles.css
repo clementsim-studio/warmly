@@ -172,6 +172,17 @@ button {
   [data-zoompill] {
     display: none;
   }
+  /* Start/Share: shrink the tall hero type so less content overflows a
+     phone viewport (paired with the auto-margin centring fix, D-047). */
+  [data-startwrap] {
+    padding: 20px 16px !important;
+  }
+  [data-starttitle] {
+    font-size: 30px !important;
+  }
+  [data-startsub] {
+    font-size: 15px !important;
+  }
 }
 @media print {
   @page {

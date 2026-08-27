@@ -48,17 +48,18 @@ export default function ShareScreen() {
       }}
     >
       <div
+        data-startwrap=""
         style={{
           position: 'absolute',
           inset: 0,
           overflow: 'auto',
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           justifyContent: 'center',
           padding: '32px 20px',
         }}
       >
-        <div style={{ width: '100%', maxWidth: 480, textAlign: 'center', animation: 'fadeUp .5s var(--ease-out)' }}>
+        <div style={{ width: '100%', maxWidth: 480, margin: 'auto', textAlign: 'center', animation: 'fadeUp .5s var(--ease-out)' }}>
           <div
             style={{
               width: 72,
@@ -75,10 +76,10 @@ export default function ShareScreen() {
               <path d="M20 6L9 17l-5-5"></path>
             </svg>
           </div>
-          <h1 style={{ fontSize: 34, lineHeight: 1.08, letterSpacing: '-0.03em', fontWeight: 700, margin: '0 0 10px' }}>
+          <h1 data-starttitle="" style={{ fontSize: 34, lineHeight: 1.08, letterSpacing: '-0.03em', fontWeight: 700, margin: '0 0 10px' }}>
             {recTitle} is ready.
           </h1>
-          <p style={{ fontSize: 17, color: 'var(--ink-3)', margin: '0 0 28px', lineHeight: 1.5 }}>
+          <p data-startsub="" style={{ fontSize: 17, color: 'var(--ink-3)', margin: '0 0 28px', lineHeight: 1.5 }}>
             Share the link. Anyone who opens it can start writing straight away — Warmly, everyone.
           </p>
 
