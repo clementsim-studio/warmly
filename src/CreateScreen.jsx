@@ -105,12 +105,16 @@ export default function CreateScreen() {
         }}
       >
         <div style={{ width: '100%', maxWidth: '500px', margin: 'auto', animation: 'fadeUp .5s var(--ease-out)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '34px' }}>
-            <div style={{ display: 'flex', gap: '3px' }}>
-              <span style={{ width: 12, height: 12, borderRadius: 999, background: 'var(--green)', display: 'block' }} />
-              <span style={{ width: 12, height: 12, borderRadius: 999, background: 'var(--blue)', display: 'block' }} />
-            </div>
-            <span style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-0.02em' }}>Warmly</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: '34px' }}>
+            <svg width="29" height="34" viewBox="13 3 56 66" fill="none" style={{ display: 'block', flexShrink: 0 }} aria-label="Warmly">
+              <rect x="48.5332" y="5.04541" width="7.46" height="52.1592" rx="3.73" transform="rotate(41.5282 48.5332 5.04541)" fill="var(--orange)" />
+              <rect x="44.0662" y="29.4248" width="8.46" height="19.7078" rx="4.23" transform="rotate(41.5282 44.0662 29.4248)" fill="var(--orange)" />
+              <rect width="7.46" height="39.8291" rx="3.73" transform="matrix(-0.748629 -0.662989 -0.662989 0.748629 66.3255 37.2725)" fill="var(--orange)" />
+              <rect x="42.0993" y="38.0718" width="9.45987" height="26.384" rx="4.72993" transform="rotate(86.5282 42.0993 38.0718)" fill="var(--orange)" />
+              <rect width="9.45987" height="26.384" rx="4.72993" transform="matrix(0.998165 -0.0605567 -0.0605567 -0.998165 34.5342 65.6387)" fill="var(--orange)" />
+              <path d="M17.9235 49.1211L25.8523 56.1429L33.7811 63.1647L20.8268 63.9506C19.7243 64.0175 18.7763 63.1779 18.7094 62.0754L17.9235 49.1211Z" fill="#FA6828" />
+            </svg>
+            <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.025em' }}>Warmly</span>
           </div>
 
           <h1 data-starttitle="" style={{ fontSize: 40, lineHeight: 1.05, letterSpacing: '-0.03em', fontWeight: 700, margin: '0 0 12px' }}>
