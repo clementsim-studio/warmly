@@ -2,6 +2,27 @@
 
 Notable changes to Warmly, newest entry first. See [DECISIONS.md](./DECISIONS.md) for the reasoning behind architectural choices, not just what changed.
 
+## 2026-09-03 (fourth design handoff)
+
+Fourth design handoff (`design_handoff_warmly/`, DESIGN_LOG 0.24.0 → 0.27.0, DECISIONS D-048 → D-054) — orange pulled back to three specific brand moments, single-tap editing, true object scaling, counter-scaled selection handles, platform-split note placement, and app-owned pinch. Frontend only, no migrations.
+
+### Added
+- **Warmly logo SVG** replaces the two-pebble brand mark on the Start screen (34px + wordmark) and the card's top app bar (26px, also the collapsed mobile icon).
+- **Single tap opens your own note for editing** — no double-click required (double-click still works). Tap vs. drag is decided on pointer-up by travel distance (~4px), not pointer-down, so repositioning still works from the same press.
+- **A dedicated move handle appears while editing**, alongside rotate/resize/remove, which now all stay visible during editing too, not just while merely selected — dragging the object body while its textarea has focus would otherwise fight text selection.
+- **Two-finger pinch is now app-owned**: with an object selected, pinch resizes and rotates it; with nothing selected, it zooms the canvas, anchored at the finger midpoint, through the same path as wheel/keyboard zoom. Native pinch never reliably applied here since every object sets `touch-action:none`.
+- **Signer avatar stack caps at 5 chips** (4 avatars + a neutral "+N" overflow) so 20 signatures can't widen the top bar. The full list stays in the popover.
+
+### Changed
+- **Orange is now reserved for exactly three brand moments** (logo, signature progress bar, ⋯ count badge) plus a soft focus ring — remapped via `--brand`/`--shadow-brand`/`--focus-ring` once in `styles.css`, not hard-coded per call site. Primary buttons (Create the card, Download as PDF, Send feedback) are near-black ink; selected states (occasion pill, orientation/card size, print size) use a neutral grey fill with an ink border instead of green.
+- **Text objects scale via `transform: scale()`**, exactly like every other object type, instead of multiplying width and font-size — applied to both the live canvas and the PDF/print export HTML. The old approach grew the box from its top-left instead of its centre, re-wrapped text so height jumped, and left the editing textarea's auto-grow height stale.
+- **Selection handles render at a constant on-screen size** (32px desktop / 42px mobile) regardless of zoom or object scale, counter-scaled and anchored with `translate(±50%,±50%)` instead of fixed pixel offsets that used to drift as the object scaled.
+- **Desktop places new notes at the click point** (clamped to keep the box on the card); mobile keeps the existing centre-of-view placement — a deliberate platform split, not a regression of one or the other.
+- **The Signatures popover now anchors to its own pill** instead of the whole right-hand button group — it was appearing under Download. Mobile's popover (already anchored to the ⋯ menu) is unaffected.
+
+### Removed
+- **Polaroid frame from the sticker picker** — it duplicated the Photo tool. Photo is now the only way to add an image; existing photo objects created as polaroids still render.
+
 ## 2026-08-27 (zoom-to-write removed; zoom pill fix)
 
 The keyboard-settle fix below didn't resolve the issue on the user's actual device either, so zoom-to-write is removed entirely by explicit request rather than continuing to chase device-specific keyboard/viewport timing. Also fixed the mobile zoom pill, which was never actually hidden despite the CSS rule intended to hide it.
