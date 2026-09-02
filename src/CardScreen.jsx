@@ -1293,13 +1293,13 @@ export default function CardScreen() {
 
     if (o.type === 'text' && o.cover_kind) {
       const cfam = o.font || 'var(--font-sans)';
-      d.style = { ...base, width: o.width * scale + 'px', transform: `rotate(${rot}deg)`, cursor: isThisEditing ? 'text' : 'grab' };
+      d.style = { ...base, width: o.width + 'px', transform: `rotate(${rot}deg) scale(${scale})`, cursor: isThisEditing ? 'text' : 'grab' };
       d.text = o.text;
       d.isEditing = isThisEditing;
       d.notEditing = !isThisEditing;
-      const ctstyle = { fontFamily: cfam, fontSize: o.fsize * scale + 'px', lineHeight: 1.02, color: o.color, fontWeight: o.weight || 700, letterSpacing: '-0.02em', textAlign: o.align || 'center', whiteSpace: 'pre-wrap', wordBreak: 'break-word' };
+      const ctstyle = { fontFamily: cfam, fontSize: o.fsize + 'px', lineHeight: 1.02, color: o.color, fontWeight: o.weight || 700, letterSpacing: '-0.02em', textAlign: o.align || 'center', whiteSpace: 'pre-wrap', wordBreak: 'break-word' };
       d.textStyle = ctstyle;
-      d.taStyle = { ...ctstyle, width: '100%', border: 'none', outline: 'none', background: 'transparent', resize: 'none', padding: 0, margin: 0, minHeight: o.fsize * scale + 'px', overflow: 'hidden', display: 'block' };
+      d.taStyle = { ...ctstyle, width: '100%', border: 'none', outline: 'none', background: 'transparent', resize: 'none', padding: 0, margin: 0, minHeight: o.fsize + 'px', overflow: 'hidden', display: 'block' };
       d.showSig = false;
       d.showPlaceholder = false;
       d.showEditSign = false;
@@ -1311,13 +1311,13 @@ export default function CardScreen() {
       };
     } else if (o.type === 'text') {
       const fs = o.font === 'Caveat' ? 30 : 18;
-      d.style = { ...base, width: 240 * scale + 'px', transform: `rotate(${rot}deg)`, cursor: isThisEditing ? 'text' : mine ? 'grab' : 'default' };
+      d.style = { ...base, width: '240px', transform: `rotate(${rot}deg) scale(${scale})`, cursor: isThisEditing ? 'text' : mine ? 'grab' : 'default' };
       d.text = o.text;
       d.isEditing = isThisEditing;
       d.notEditing = !isThisEditing;
-      const tstyle = { fontFamily: o.font === 'Caveat' ? "'Caveat',cursive" : 'var(--font-sans)', fontSize: fs * scale + 'px', lineHeight: o.font === 'Caveat' ? 1.15 : 1.45, color: o.color, fontWeight: o.font === 'Caveat' ? 600 : 500, whiteSpace: 'pre-wrap', wordBreak: 'break-word' };
+      const tstyle = { fontFamily: o.font === 'Caveat' ? "'Caveat',cursive" : 'var(--font-sans)', fontSize: fs + 'px', lineHeight: o.font === 'Caveat' ? 1.15 : 1.45, color: o.color, fontWeight: o.font === 'Caveat' ? 600 : 500, whiteSpace: 'pre-wrap', wordBreak: 'break-word' };
       d.textStyle = tstyle;
-      d.taStyle = { ...tstyle, width: '100%', border: 'none', outline: 'none', background: 'transparent', resize: 'none', padding: 0, margin: 0, minHeight: fs * scale + 'px', overflow: 'hidden', display: 'block' };
+      d.taStyle = { ...tstyle, width: '100%', border: 'none', outline: 'none', background: 'transparent', resize: 'none', padding: 0, margin: 0, minHeight: fs + 'px', overflow: 'hidden', display: 'block' };
       // The signature is never independently editable — tapping it opens
       // the whole note's edit box, exactly like tapping the message, via
       // the same onDoubleClick on the outer element. There is no separate
@@ -1327,7 +1327,7 @@ export default function CardScreen() {
       d.showSig = !!existingSignerName;
       d.sigName = existingSignerName ? '— ' + existingSignerName : '';
       const sigFam = o.font === 'Caveat' ? "'Caveat',cursive" : 'var(--font-sans)';
-      const sigFs = o.font === 'Caveat' ? 25 * scale : 16 * scale;
+      const sigFs = o.font === 'Caveat' ? 25 : 16;
       d.sigStyle = { fontFamily: sigFam, fontSize: sigFs + 'px', fontWeight: o.font === 'Caveat' ? 600 : 500, color: o.color, marginTop: 4, opacity: 0.9, display: 'inline-block' };
       d.showPlaceholder = mine && !meName && o.promptSign;
       d.placeholderStyle = { fontFamily: sigFam, fontSize: sigFs + 'px', color: '#b9bbc1', marginTop: 4 };

@@ -21,14 +21,14 @@ export function objectsToHTML(list, resolveSrc, resolveSignerName) {
     const rot = o.rotation || 0;
     const sc = o.scale || 1;
     if (o.type === 'text' && o.cover_kind) {
-      h += `<div style="position:absolute;left:${o.x}px;top:${o.y}px;width:${o.width * sc}px;transform:rotate(${rot}deg)"><div style="font-family:${o.font};font-size:${o.fsize * sc}px;font-weight:${o.weight || 700};letter-spacing:-.02em;line-height:1.02;text-align:${o.align || 'center'};color:${o.color};white-space:pre-wrap;word-break:break-word">${esc(o.text)}</div></div>`;
+      h += `<div style="position:absolute;left:${o.x}px;top:${o.y}px;width:${o.width}px;transform:rotate(${rot}deg) scale(${sc})"><div style="font-family:${o.font};font-size:${o.fsize}px;font-weight:${o.weight || 700};letter-spacing:-.02em;line-height:1.02;text-align:${o.align || 'center'};color:${o.color};white-space:pre-wrap;word-break:break-word">${esc(o.text)}</div></div>`;
     } else if (o.type === 'text') {
       const sign = resolveSignerName ? resolveSignerName(o.owner_id) : null;
       const fs = o.font === 'Caveat' ? 30 : 18,
         ff = o.font === 'Caveat' ? "'Caveat',cursive" : "'Inter',sans-serif",
         fw = o.font === 'Caveat' ? 600 : 500,
         lh = o.font === 'Caveat' ? 1.15 : 1.45;
-      h += `<div style="position:absolute;left:${o.x}px;top:${o.y}px;width:${240 * sc}px;transform:rotate(${rot}deg)"><div style="font-family:${ff};font-size:${fs * sc}px;line-height:${lh};color:${o.color};font-weight:${fw};white-space:pre-wrap;word-break:break-word">${esc(o.text)}</div>${sign ? `<div style="font-family:${ff};font-size:${(o.font === 'Caveat' ? 25 : 16) * sc}px;font-weight:${fw};color:${o.color};margin-top:4px;opacity:.9">— ${esc(sign)}</div>` : ''}</div>`;
+      h += `<div style="position:absolute;left:${o.x}px;top:${o.y}px;width:240px;transform:rotate(${rot}deg) scale(${sc})"><div style="font-family:${ff};font-size:${fs}px;line-height:${lh};color:${o.color};font-weight:${fw};white-space:pre-wrap;word-break:break-word">${esc(o.text)}</div>${sign ? `<div style="font-family:${ff};font-size:${o.font === 'Caveat' ? 25 : 16}px;font-weight:${fw};color:${o.color};margin-top:4px;opacity:.9">— ${esc(sign)}</div>` : ''}</div>`;
     } else if (o.type === 'photo') {
       const src = resolveSrc(o.photo_path);
       const inner = src
