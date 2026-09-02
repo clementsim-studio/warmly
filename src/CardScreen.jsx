@@ -141,6 +141,17 @@ export default function CardScreen() {
   const bottomBarRef = useRef(null);
   const fileRef = useRef(null);
   const gestureRef = useRef(null);
+  // Two-finger touch tracking for app-owned pinch (D-053). Plain refs, not
+  // state, so onDocMove/onDocUp can read/update them synchronously without
+  // waiting on a render, exactly like gestureRef.
+  const ptsRef = useRef(null);
+  const objPinchRef = useRef(null);
+  const pinchRef = useRef(null);
+  // Mirrors state the pinch pointerdown handler needs to read without being
+  // in the gesture effect's dependency array — objects/selectedId/panning
+  // change on every keystroke and drag frame, and re-subscribing six window
+  // listeners that often would be wasteful and could drop a gesture mid-flight.
+  const pinchLiveRef = useRef({});
   const drawPtsRef = useRef(null);
   const pendingPointRef = useRef(null);
   const fillPhotoIdRef = useRef(null);
@@ -356,7 +367,65 @@ export default function CardScreen() {
   }, [cardId, meId, face, penColor, penWidth]);
 
   useEffect(() => {
+    pinchLiveRef.current = { objects, selectedId, panning, fullControl, card, meId };
+  });
+
+  useEffect(() => {
+    // Two-finger pinch on the canvas (D-053). Tracked in capture phase
+    // because objects stopPropagation on pointerdown, and every object sets
+    // touch-action:none — a bubble-phase listener would never see the
+    // second finger once an object has claimed the first.
+    function onDocDown(e) {
+      if (e.pointerType !== 'touch') return;
+      const sc = scroller();
+      if (!sc || !sc.contains(e.target)) return;
+      const pts = ptsRef.current || (ptsRef.current = new Map());
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 2) {
+        const [a, b] = [...pts.values()];
+        if (gestureRef.current && gestureRef.current.type === 'draw') {
+          drawPtsRef.current = null;
+          setLiveTick((t) => t + 1);
+        }
+        gestureRef.current = null;
+        const live = pinchLiveRef.current;
+        if (live.panning) setPanning(false);
+        const d0 = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+        const ang0 = Math.atan2(b.y - a.y, b.x - a.x);
+        // With something selected, pinch resizes/rotates it; otherwise it
+        // zooms the canvas (D-054).
+        const sel = live.selectedId && (live.objects || []).find((o) => o.id === live.selectedId);
+        const canManip = sel && (sel.owner_id === live.meId || sel.communal || sel.type === 'sticker' || (live.card && live.card.unlimited && live.fullControl));
+        if (canManip) {
+          objPinchRef.current = { id: sel.id, d0, ang0, s0: sel.scale || 1, rot0: sel.rotation || 0 };
+          return;
+        }
+        pinchRef.current = { d0, z0: zoom || 1 };
+      }
+    }
     function onDocMove(e) {
+      const pts = ptsRef.current;
+      if (pts && pts.has(e.pointerId)) {
+        pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pts.size === 2) {
+          if (e.cancelable) e.preventDefault();
+          const [a, b] = [...pts.values()];
+          const d = Math.hypot(a.x - b.x, a.y - b.y);
+          if (objPinchRef.current) {
+            const g = objPinchRef.current;
+            const deg = ((Math.atan2(b.y - a.y, b.x - a.x) - g.ang0) * 180) / Math.PI;
+            const ns = Math.max(0.35, Math.min(4, +((g.s0 * d) / g.d0).toFixed(3)));
+            const nr = +(g.rot0 + deg).toFixed(1);
+            setObjects((prev) => prev.map((o) => (o.id === g.id ? { ...o, scale: ns, rotation: nr } : o)));
+            return;
+          }
+          if (pinchRef.current) {
+            const g = pinchRef.current;
+            setZoomAt(g.z0 * (d / g.d0), (a.x + b.x) / 2, (a.y + b.y) / 2);
+            return;
+          }
+        }
+      }
       const g = gestureRef.current;
       if (!g) return;
       if (g.type === 'pan') {
@@ -387,7 +456,22 @@ export default function CardScreen() {
         setObjects((prev) => prev.map((o) => (o.id === g.id ? { ...o, rotation: nr } : o)));
       }
     }
-    function onDocUp() {
+    function onDocUp(e) {
+      if (e && ptsRef.current) {
+        ptsRef.current.delete(e.pointerId);
+        if (ptsRef.current.size < 2) {
+          if (objPinchRef.current) {
+            const id = objPinchRef.current.id;
+            objPinchRef.current = null;
+            setObjects((prev) => {
+              const o = prev.find((x) => x.id === id);
+              if (o) db.updateObject(id, { scale: o.scale, rotation: o.rotation }).catch(console.error);
+              return prev;
+            });
+          }
+          pinchRef.current = null;
+        }
+      }
       const g = gestureRef.current;
       if (g && g.type === 'draw') finishDraw();
       if (g && (g.type === 'move' || g.type === 'resize' || g.type === 'rotate')) {
@@ -433,6 +517,8 @@ export default function CardScreen() {
         setZoom(fitZoomFor(card ? card.format : 'landscape'));
       }
     }
+    // Capture phase: see the onDocDown comment above for why.
+    window.addEventListener('pointerdown', onDocDown, true);
     window.addEventListener('pointermove', onDocMove);
     window.addEventListener('pointerup', onDocUp);
     // A touch gesture can be cancelled mid-stroke (e.g. an interruption the
@@ -443,6 +529,7 @@ export default function CardScreen() {
     window.addEventListener('wheel', onWheel, { passive: false });
     window.addEventListener('keydown', onKeyZoom);
     return () => {
+      window.removeEventListener('pointerdown', onDocDown, true);
       window.removeEventListener('pointermove', onDocMove);
       window.removeEventListener('pointerup', onDocUp);
       window.removeEventListener('pointercancel', onDocUp);
@@ -1485,8 +1572,12 @@ export default function CardScreen() {
     // Draw needs explicit gesture ownership on touch, or the scroll
     // container claims the drag as a scroll before any pointermove fires
     // (D-039). Scoped to Draw only so panning/scrolling is unaffected with
-    // every other tool.
-    touchAction: tool === 'draw' ? 'none' : 'auto',
+    // every other tool. Everywhere else: pan-x pan-y (not the default auto)
+    // so one-finger scrolling still works while the browser yields the
+    // two-finger gesture to the app's own pinch handling (D-053) instead of
+    // native pinch-zoom, which never reliably applied here anyway since
+    // every object sets touch-action:none.
+    touchAction: tool === 'draw' ? 'none' : 'pan-x pan-y',
   };
   // On mobile the canvas fills exactly the window between the edge-anchored
   // bars (never clipping behind either), using the same measured heights
