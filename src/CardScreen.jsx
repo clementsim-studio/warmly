@@ -675,9 +675,9 @@ export default function CardScreen() {
     }
   };
 
-  const startMove = (o, e) => {
+  const startMove = (o, e, force) => {
     e.stopPropagation();
-    if (editingId === o.id) return;
+    if (editingId === o.id && !force) return;
     const isMine = o.owner_id === meId;
     if (!isMine && o.type !== 'sticker' && !o.communal) {
       if (card && card.unlimited) {
@@ -1289,7 +1289,28 @@ export default function CardScreen() {
       e.stopPropagation();
       deleteObject(o.id);
     };
-    d.showFrame = grabbable && selected && !isThisEditing;
+    // Selection chrome stays visible while editing too (D-054) — the frame
+    // and rotate/resize/remove handles don't disappear just because the
+    // note is open, and a dedicated move grip appears since dragging the
+    // object body while a textarea has focus would fight text selection.
+    d.showFrame = grabbable && selected;
+    // Handles are chrome, not content: they sit inside an element scaled by
+    // objectScale × canvasZoom, so without counter-scaling a 32px control
+    // would render at a few px on a zoomed-out phone. Counter-scale to a
+    // constant on-screen size (D-054).
+    const k = Math.max(0.05, scale * (zoom || 1));
+    const inv = 1 / k;
+    const hSize = mobileView ? 42 : 32,
+      hIcon = mobileView ? 17 : 14;
+    const hBase = { position: 'absolute', width: hSize + 'px', height: hSize + 'px', borderRadius: '999px', background: 'var(--white)', boxShadow: 'var(--shadow-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'none', zIndex: 60 };
+    d.hIcon = hIcon;
+    d.frameStyle = { position: 'absolute', inset: '-8px', border: 1.5 * inv + 'px solid var(--blue)', borderRadius: 12 * inv + 'px', pointerEvents: 'none' };
+    d.hMove = { ...hBase, left: 0, bottom: 0, transform: `translate(-50%,50%) scale(${inv})`, border: '1.5px solid var(--blue)', cursor: 'grab' };
+    d.hRotate = { ...hBase, left: '50%', top: 0, transform: `translate(-50%,-50%) translateY(${-26 * inv}px) scale(${inv})`, border: '1.5px solid var(--blue)', cursor: 'grab' };
+    d.hResize = { ...hBase, right: 0, bottom: 0, transform: `translate(50%,50%) scale(${inv})`, border: '1.5px solid var(--blue)', cursor: 'nwse-resize' };
+    d.hDelete = { ...hBase, left: 0, top: 0, transform: `translate(-50%,-50%) scale(${inv})`, border: '1.5px solid var(--line-strong)', cursor: 'pointer' };
+    d.showMoveGrip = grabbable && selected && isThisEditing;
+    d.onGripMove = (e) => startMove(o, e, true);
 
     if (o.type === 'text' && o.cover_kind) {
       const cfam = o.font || 'var(--font-sans)';

@@ -73,79 +73,35 @@ export default function ObjectView({ d }) {
 
       {d.showFrame && (
         <>
-          <div style={{ position: 'absolute', inset: -8, border: '1.5px solid var(--blue)', borderRadius: 12, pointerEvents: 'none' }} />
-          <div
-            onPointerDown={d.onRotate}
-            title="Rotate"
-            style={{
-              position: 'absolute',
-              left: '50%',
-              top: -40,
-              transform: 'translateX(-50%)',
-              width: 26,
-              height: 26,
-              borderRadius: 999,
-              background: 'var(--white)',
-              border: '1.5px solid var(--blue)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'grab',
-              boxShadow: 'var(--shadow-sm)',
-            }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+          <div style={d.frameStyle} />
+          {d.showMoveGrip && (
+            <div onPointerDown={d.onGripMove} title="Move" style={d.hMove}>
+              <svg width={d.hIcon} height={d.hIcon} viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 9l-3 3 3 3"></path>
+                <path d="M9 5l3-3 3 3"></path>
+                <path d="M15 19l-3 3-3-3"></path>
+                <path d="M19 9l3 3-3 3"></path>
+                <path d="M2 12h20"></path>
+                <path d="M12 2v20"></path>
+              </svg>
+            </div>
+          )}
+          <div onPointerDown={d.onRotate} title="Rotate" style={d.hRotate}>
+            <svg width={d.hIcon} height={d.hIcon} viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 12a9 9 0 1 1-3-6.7"></path>
               <path d="M21 3v5h-5"></path>
             </svg>
           </div>
-          <div
-            onPointerDown={d.onResize}
-            title="Resize"
-            style={{
-              position: 'absolute',
-              right: -13,
-              bottom: -13,
-              width: 26,
-              height: 26,
-              borderRadius: 999,
-              background: 'var(--white)',
-              border: '1.5px solid var(--blue)',
-              cursor: 'nwse-resize',
-              boxShadow: 'var(--shadow-sm)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+          <div onPointerDown={d.onResize} title="Resize" style={d.hResize}>
+            <svg width={d.hIcon} height={d.hIcon} viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 3h6v6"></path>
               <path d="M9 21H3v-6"></path>
               <path d="M21 3l-7 7"></path>
               <path d="M3 21l7-7"></path>
             </svg>
           </div>
-          <div
-            onPointerDown={d.onDeleteDown}
-            onClick={d.onDelete}
-            title="Remove"
-            style={{
-              position: 'absolute',
-              left: -13,
-              top: -13,
-              width: 26,
-              height: 26,
-              borderRadius: 999,
-              background: 'var(--white)',
-              border: '1px solid var(--line-strong)',
-              cursor: 'pointer',
-              boxShadow: 'var(--shadow-sm)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+          <div onPointerDown={d.onDeleteDown} onClick={d.onDelete} title="Remove" style={d.hDelete}>
+            <svg width={d.hIcon} height={d.hIcon} viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6L6 18"></path>
               <path d="M6 6l12 12"></path>
             </svg>
