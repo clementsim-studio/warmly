@@ -1499,9 +1499,11 @@ export default function CardScreen() {
   const mockH = Math.round(dims.h * mockK);
 
   // Shared between the desktop Signatures pill and the mobile ⋯ overflow —
-  // same popover, two different triggers/anchors.
-  const signersPopover = showSigners && (
-    <div style={{ position: 'absolute', top: 52, right: 0, width: 250, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)', padding: '16px 18px', animation: 'fadeUp .2s var(--ease-out)', zIndex: 140 }}>
+  // same popover, two different triggers/anchors. Desktop anchors to the
+  // pill's own wrapper (left:0); mobile anchors to the ⋯ icon group (right:0)
+  // — it was appearing under Download when both used the same right:0.
+  const renderSignersPopover = (anchor) => showSigners && (
+    <div style={{ position: 'absolute', ...anchor, width: 250, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)', padding: '16px 18px', animation: 'fadeUp .2s var(--ease-out)', zIndex: 140 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
         <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>Signatures</span>
         <span style={{ fontSize: 12, fontWeight: 700, color: full ? 'var(--green-ink)' : 'var(--ink-3)' }}>
@@ -1682,23 +1684,26 @@ export default function CardScreen() {
                   </button>
                 </div>
               )}
-              {signersPopover}
+              {renderSignersPopover({ top: 52, right: 0 })}
             </div>
           ) : (
             <div style={{ justifySelf: 'end', position: 'relative', display: 'flex', alignItems: 'center', gap: 8, pointerEvents: 'auto' }}>
-              <button onClick={() => setShowSigners((s) => !s)} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: '6px 12px 6px 10px', boxShadow: 'var(--shadow-sm)', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  {signersAvatars.map((s) => (
-                    <div key={s.key} style={s.style}>
-                      {s.initial}
-                    </div>
-                  ))}
-                </div>
-                <span style={{ fontSize: 13, color: 'var(--ink-2)', fontWeight: 600, whiteSpace: 'nowrap' }}>{signerLabel}</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'transform var(--dur-fast) var(--ease-standard)', transform: showSigners ? 'rotate(180deg)' : 'none', flexShrink: 0 }}>
-                  <path d="M6 9l6 6 6-6"></path>
-                </svg>
-              </button>
+              <div style={{ position: 'relative' }}>
+                <button onClick={() => setShowSigners((s) => !s)} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: '6px 12px 6px 10px', boxShadow: 'var(--shadow-sm)', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    {signersAvatars.map((s) => (
+                      <div key={s.key} style={s.style}>
+                        {s.initial}
+                      </div>
+                    ))}
+                  </div>
+                  <span style={{ fontSize: 13, color: 'var(--ink-2)', fontWeight: 600, whiteSpace: 'nowrap' }}>{signerLabel}</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'transform var(--dur-fast) var(--ease-standard)', transform: showSigners ? 'rotate(180deg)' : 'none', flexShrink: 0 }}>
+                    <path d="M6 9l6 6 6-6"></path>
+                  </svg>
+                </button>
+                {renderSignersPopover({ top: 'calc(100% + 8px)', left: 0 })}
+              </div>
               <button onClick={() => { setShowSend(true); setShowSigners(false); setSelectedId(null); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 40, padding: '0 16px', borderRadius: 999, border: '1px solid var(--line)', background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', color: 'var(--ink-1)', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 14, cursor: 'pointer', boxShadow: 'var(--shadow-sm)', flexShrink: 0 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="18" cy="5" r="3"></circle>
@@ -1720,8 +1725,6 @@ export default function CardScreen() {
                 </svg>
                 <span>Download</span>
               </button>
-
-              {signersPopover}
             </div>
           )}
         </div>
