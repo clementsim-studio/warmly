@@ -1171,6 +1171,32 @@ export default function CardScreen() {
       },
     ]);
   }
+  // Cap the stack at 5 chips: 4 avatars + a "+N" overflow, so 20 signatures
+  // can't widen the top bar (D-050). The full list stays in the popover.
+  if (signersAvatars.length > 5) {
+    signersAvatars = signersAvatars.slice(0, 4).concat([
+      {
+        key: 'overflow',
+        initial: '+' + (signersAvatars.length - 4),
+        style: {
+          minWidth: 30,
+          height: 30,
+          padding: '0 7px',
+          borderRadius: 999,
+          background: 'var(--sunken)',
+          color: 'var(--ink-2)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 12,
+          fontWeight: 700,
+          border: '2px solid var(--canvas)',
+          marginLeft: '-8px',
+          boxShadow: 'var(--shadow-xs)',
+        },
+      },
+    ]);
+  }
 
   const signersFull = signers
     .filter((s) => s.name)
