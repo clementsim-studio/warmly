@@ -367,6 +367,10 @@ export default function CardScreen() {
         }
       } else if (g.type === 'move') {
         const z = zoom || 1;
+        // Distinguish tap from drag by travel, decided on pointer-up (D-049)
+        // — under ~4px is a tap, so repositioning still works from the same
+        // press that a tap would otherwise treat as "open for editing".
+        if (!g.moved && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) > 4) g.moved = true;
         const nx = g.ox + (e.clientX - g.sx) / z;
         const ny = g.oy + (e.clientY - g.sy) / z;
         setObjects((prev) => prev.map((o) => (o.id === g.id ? { ...o, x: nx, y: ny } : o)));
@@ -399,6 +403,13 @@ export default function CardScreen() {
       const wasPan = g && g.type === 'pan';
       gestureRef.current = null;
       if (wasPan) setPanning(false);
+      // A single tap (no travel) on your own note opens it for editing —
+      // no double-click needed (D-049). Real drags (g.moved) never do this.
+      if (g && g.type === 'move' && !g.moved && g.tapEdit && editingId !== g.id) {
+        setEditingId(g.id);
+        setSelectedId(g.id);
+        setSignName(g.signPrefill);
+      }
     }
     function onWheel(e) {
       if (!(e.ctrlKey || e.metaKey)) return;
@@ -438,7 +449,7 @@ export default function CardScreen() {
       window.removeEventListener('wheel', onWheel);
       window.removeEventListener('keydown', onKeyZoom);
     };
-  }, [zoom, scroller, surfacePoint, finishDraw, setZoomAt, card]);
+  }, [zoom, scroller, surfacePoint, finishDraw, setZoomAt, card, editingId]);
 
   useEffect(() => {
     if (editingId) {
@@ -691,7 +702,10 @@ export default function CardScreen() {
         return;
       }
     }
-    gestureRef.current = { type: 'move', id: o.id, sx: e.clientX, sy: e.clientY, ox: o.x, oy: o.y };
+    // tapEdit/signPrefill are captured now (fresh o/isMine/meName), so the
+    // pointerup tap-check (D-049) never needs a stale re-lookup of objects.
+    const tapEdit = o.type === 'text' && (isMine || o.communal || (card && card.unlimited && fullControl));
+    gestureRef.current = { type: 'move', id: o.id, sx: e.clientX, sy: e.clientY, ox: o.x, oy: o.y, moved: false, tapEdit, signPrefill: isMine ? meName || '' : '' };
     setSelectedId(o.id);
   };
   const centerOf = (id) => {
