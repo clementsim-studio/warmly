@@ -1483,7 +1483,7 @@ export default function CardScreen() {
         </span>
       </div>
       <div style={{ height: 6, borderRadius: 999, background: 'var(--sunken)', overflow: 'hidden', marginBottom: 7 }}>
-        <div style={{ height: '100%', width: pct + '%', borderRadius: 999, background: full || unlimited ? 'var(--green)' : 'var(--brand)', transition: 'width var(--dur-slow) var(--ease-out)' }} />
+        <div style={{ height: '100%', width: pct + '%', borderRadius: 999, background: full || unlimited ? 'var(--green)' : 'var(--orange)', transition: 'width var(--dur-slow) var(--ease-out)' }} />
       </div>
       <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 16 }}>{capNote}.</div>
       {FEATURE_MONETIZATION && !unlimited && (
@@ -1890,7 +1890,7 @@ export default function CardScreen() {
                   <button
                     onClick={submitFeedback}
                     disabled={feedbackSubmitting}
-                    style={{ width: '100%', height: 50, borderRadius: 'var(--radius-pill)', border: 'none', cursor: feedbackSubmitting ? 'default' : 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 15, opacity: feedbackSubmitting ? 0.7 : 1, background: feedbackRating ? 'var(--green)' : 'var(--sunken)', color: feedbackRating ? '#fff' : 'var(--ink-4)', boxShadow: feedbackRating ? 'var(--shadow-brand)' : 'none' }}
+                    style={{ width: '100%', height: 50, borderRadius: 'var(--radius-pill)', border: 'none', cursor: feedbackSubmitting ? 'default' : 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 15, opacity: feedbackSubmitting ? 0.7 : 1, background: feedbackRating ? 'var(--brand)' : 'var(--sunken)', color: feedbackRating ? '#fff' : 'var(--ink-4)', boxShadow: feedbackRating ? 'var(--shadow-brand)' : 'none' }}
                   >
                     {feedbackSubmitting ? 'Sending…' : 'Send feedback'}
                   </button>
@@ -1984,10 +1984,10 @@ export default function CardScreen() {
                     <button
                       key={id}
                       onClick={() => setPrintSize(id)}
-                      style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '12px 8px 13px', borderRadius: 'var(--radius-lg)', cursor: 'pointer', fontFamily: 'var(--font-sans)', background: sel ? 'var(--green-soft)' : 'var(--white)', border: sel ? '1.5px solid var(--green)' : '1.5px solid var(--line-strong)', color: 'var(--ink-1)', boxShadow: sel ? 'var(--shadow-sm)' : 'var(--shadow-xs)' }}
+                      style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '12px 8px 13px', borderRadius: 'var(--radius-lg)', cursor: 'pointer', fontFamily: 'var(--font-sans)', background: sel ? 'var(--sunken)' : 'var(--white)', border: sel ? '1.5px solid var(--ink-1)' : '1.5px solid var(--line-strong)', color: 'var(--ink-1)', boxShadow: sel ? 'var(--shadow-sm)' : 'var(--shadow-xs)' }}
                     >
                       <div style={{ height: 70, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-                        <div style={{ width: rw, height: rh, borderRadius: 3, background: sel ? 'var(--green)' : 'var(--sunken)', border: sel ? 'none' : '1.5px solid var(--line-strong)' }} />
+                        <div style={{ width: rw, height: rh, borderRadius: 3, background: sel ? 'var(--ink-1)' : 'var(--sunken)', border: sel ? 'none' : '1.5px solid var(--line-strong)' }} />
                       </div>
                       <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>{id.toUpperCase()}</div>
                       <div style={{ fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.25 }}>{helper}</div>
