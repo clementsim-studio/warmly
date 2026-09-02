@@ -716,11 +716,12 @@ export default function CardScreen() {
     db.deleteObject(id).catch(console.error);
   };
 
-  // Where a newly-written note appears: the centre of the currently visible
-  // canvas, clamped inside the card — not the tap point (D-034). You type
-  // first, then drag it where you want. Dragging, drawing and every other
-  // tool keep using the true pointer coordinate; only new text placement
-  // works this way.
+  // Where a newly-written note appears on mobile: the centre of the
+  // currently visible canvas, clamped inside the card — not the tap point
+  // (D-034). Finger imprecision and the on-screen keyboard obstructing the
+  // view make the actual touch point a poor landing spot there. Desktop
+  // instead places the note at the click point (D-052, via clampToCard
+  // below) — this platform split is deliberate, not a workaround.
   const viewportCenterCard = () => {
     const sc = scroller();
     if (!sc) return { x: dims.w / 2, y: dims.h / 2 };
@@ -728,6 +729,13 @@ export default function CardScreen() {
     const p = surfacePoint({ clientX: r.left + sc.clientWidth / 2, clientY: r.top + sc.clientHeight / 2 });
     return { x: Math.max(0, Math.min(dims.w, p.x)), y: Math.max(0, Math.min(dims.h, p.y)) };
   };
+
+  // Desktop: the note lands at the click point, clamped so the 240px box
+  // (createText offsets by -120,-18) stays fully on the card (D-052).
+  const clampToCard = (p) => ({
+    x: Math.max(130, Math.min(dims.w - 130, p.x)),
+    y: Math.max(30, Math.min(dims.h - 60, p.y)),
+  });
 
   const onSurfaceDown = (e) => {
     if (!e.target || e.target.getAttribute('data-surface') !== '1') return;
@@ -751,7 +759,7 @@ export default function CardScreen() {
         setPanning(true);
       }
     } else if (tool === 'write') {
-      const c = viewportCenterCard();
+      const c = mobileView ? viewportCenterCard() : clampToCard(p);
       createText(c.x, c.y);
     } else if (tool === 'draw') {
       drawPtsRef.current = [p];
