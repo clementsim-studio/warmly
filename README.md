@@ -42,6 +42,8 @@ supabase/
   functions/
     purge-expired-cards/    Scheduled Edge Function: hard-deletes cards (+ their
                              Storage photos) 15 days after creation
+  scripts/                 One-off ops tools (pre-launch data wipe) — see
+                             supabase/scripts/README.md; not part of the app
 vercel.json             SPA rewrite so /c/:id and /share/:id don't 404 on reload
 ```
 
