@@ -38,7 +38,10 @@ api/
 supabase/
   migrations/0001_init.sql   Full schema: tables, RLS policies, signature-cap
                               trigger, storage bucket + policies
-  migrations/0002-0006      Later schema changes — see each file's own comment
+  migrations/0002-0009      Later schema changes — see each file's own comment
+  functions/
+    purge-expired-cards/    Scheduled Edge Function: hard-deletes cards (+ their
+                             Storage photos) 15 days after creation
 vercel.json             SPA rewrite so /c/:id and /share/:id don't 404 on reload
 ```
 
@@ -75,6 +78,23 @@ These are safe to expose client-side (that's what the anon/publishable key is fo
 
 Hosted on Vercel, connected to the `clementsim-studio/warmly` GitHub repo. Framework preset auto-detects as Vite (`npm run build`, output `dist`). Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as Environment Variables in the Vercel project before deploying. `vercel.json` handles the SPA rewrite; no other config needed.
 
+## Scheduled jobs
+
+**`purge-expired-cards`** — a Supabase Edge Function that permanently deletes each card 15 days after it was created (it's already frozen/read-only at 14 days by a DB trigger). It removes the card's photos from the `card-photos` bucket, then deletes the `cards` row; `ON DELETE CASCADE` clears its `signers` and `card_objects`. `feedback` rows are kept — their `card_id`/`signer_id` are set to null, and `card_occasion`/`card_format` are frozen onto each row at submission time for analytics. **This is a hard, irreversible delete**; the card's link 404s afterwards.
+
+One-time setup (not covered by a Vercel deploy — Supabase-side):
+
+1. `supabase functions deploy purge-expired-cards` (JWT verification left on).
+2. Run migration `0008_feedback_survives_card_purge.sql` in the SQL Editor.
+3. Store two Vault secrets, then run migration `0009_schedule_purge_expired_cards.sql`:
+   ```sql
+   select vault.create_secret('https://<project-ref>.supabase.co', 'project_url');
+   select vault.create_secret('<service-role-key>',                'service_role_key');
+   ```
+   Migration `0009` has the full prerequisite list and the queries to inspect `cron.job_run_details` afterwards.
+
+The function reads Supabase's auto-injected `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` — no manual function env vars.
+
 ## What's real vs. placeholder
 
 - **Real**: card persistence, live multi-viewer sync, photo uploads, server-enforced 10-signature free-plan cap.
@@ -83,4 +103,4 @@ Hosted on Vercel, connected to the `clementsim-studio/warmly` GitHub repo. Frame
 ## Known limitations
 
 - RLS is permissive (anyone holding a card's link can read/write it) — this matches the no-accounts product design; see DECISIONS.md.
-- `cards` and `signers` rows can't be deleted via the anon key (no DELETE policy on those tables) — only `card_objects` rows can be removed by the client. This is incidental (not a deliberate feature) but worth knowing if you're cleaning up test data — you'll need SQL Editor access for those two tables.
+- `cards` and `signers` rows can't be deleted via the anon key (no DELETE policy on those tables) — only `card_objects` rows can be removed by the client. This is incidental (not a deliberate feature) but worth knowing if you're cleaning up test data — you'll need SQL Editor access for those two tables. (The `purge-expired-cards` job deletes them server-side with the service-role key; that's a separate path from the anon client.)

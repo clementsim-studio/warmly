@@ -73,6 +73,20 @@ export default async function handler(req, res) {
     return;
   }
 
+  // Denormalised card context, frozen onto the feedback row — once the
+  // 15-day purge nulls feedback.card_id, this is all that's left to segment
+  // feedback by (see supabase/migrations/0008_feedback_survives_card_purge.sql).
+  const { data: card, error: cardErr } = await admin
+    .from('cards')
+    .select('occasion, format')
+    .eq('id', cardId)
+    .maybeSingle();
+  if (cardErr) {
+    console.error(cardErr);
+    res.status(500).json({ error: 'lookup_failed' });
+    return;
+  }
+
   const country = req.headers['x-vercel-ip-country'] || null;
   const ipHash = hashIp(clientIp(req));
 
@@ -83,6 +97,8 @@ export default async function handler(req, res) {
     comment: commentText || null,
     country,
     ip_hash: ipHash,
+    card_occasion: card ? card.occasion : null,
+    card_format: card ? card.format : null,
   });
   if (insertErr) {
     console.error(insertErr);

@@ -2,6 +2,23 @@
 
 Notable changes to Warmly, newest entry first. See [DECISIONS.md](./DECISIONS.md) for the reasoning behind architectural choices, not just what changed.
 
+## 2026-09-05 (pre-launch: expired-card purge)
+
+Pre-launch data-retention work. Expired cards were previously frozen at 14 days but never deleted — nothing reclaimed the space. They are now hard-deleted at 15 days by a scheduled Edge Function. `feedback` is deliberately kept for analytics. Schema change (`feedback` foreign keys) plus two new migrations and a new Edge Function; requires manual deploy + Vault setup steps (see README "Scheduled jobs"). Confirmed with the user, including that the delete is permanent and unrecoverable.
+
+### Added
+- **`supabase/functions/purge-expired-cards/`** — Deno Edge Function. Finds cards older than 15 days, deletes each one's `card-photos/<cardId>/` Storage folder, then deletes the `cards` row (`ON DELETE CASCADE` removes its `signers` and `card_objects`). Batches 200 cards/run, returns `{ purged, photosDeleted, more }`, and rejects any request without the service-role bearer token.
+- **`supabase/migrations/0009_schedule_purge_expired_cards.sql`** — schedules the function daily at 03:15 UTC via `pg_cron` → `pg_net`, reading the project URL and service-role key from Supabase Vault. Includes the prerequisite deploy/Vault steps and the queries to inspect run history.
+- **`feedback.card_occasion` / `feedback.card_format`** (migration `0008`) — denormalised snapshot of the card, written by `api/feedback.js` on every new row, so feedback can still be segmented by card type after a purge nulls `feedback.card_id`. Existing feedback rows are backfilled in the migration.
+
+### Changed
+- **`feedback.card_id` and `feedback.signer_id` are now nullable with `ON DELETE SET NULL`** (was `NOT NULL` + `ON DELETE CASCADE`), so a card purge nulls the references instead of deleting the feedback row. The `rating` / `comment` / `country` / `ip_hash` / `created_at` payload is unaffected.
+- **`api/feedback.js`** now fetches `cards.occasion` / `cards.format` and writes them onto the feedback row (one extra `select` per submission).
+
+### Notes
+- The 14-day freeze cutoff (`enforce_card_not_resting` trigger, and `14 * DAY_MS` in `CardScreen.jsx`) is unchanged. The purge cutoff is a separate `LIFESPAN_DAYS = 15` in the function and must stay strictly greater than the freeze value. See DECISIONS.md for why the literal is duplicated rather than shared.
+- Migrations `0008` and `0009` and the function are **not deployed** by this change — they need to be run/deployed manually against the Supabase project, with the Vault secrets set first.
+
 ## 2026-09-03 (fourth design handoff)
 
 Fourth design handoff (`design_handoff_warmly/`, DESIGN_LOG 0.24.0 → 0.27.0, DECISIONS D-048 → D-054) — orange pulled back to three specific brand moments, single-tap editing, true object scaling, counter-scaled selection handles, platform-split note placement, and app-owned pinch. Frontend only, no migrations.
