@@ -2096,7 +2096,7 @@ export default function CardScreen() {
               {feedbackStage === 'open' && (
                 <div>
                   <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 4 }}>How was making this card?</div>
-                  <p style={{ fontSize: 13.5, color: 'var(--ink-3)', lineHeight: 1.4, margin: '0 0 20px' }}>Two seconds, and it genuinely helps.</p>
+                  <p style={{ fontSize: 13.5, color: 'var(--ink-3)', lineHeight: 1.4, margin: '0 0 20px' }}>Two seconds, it genuinely helps.</p>
                   <div style={{ display: 'flex', gap: 8, marginBottom: 20 }} onMouseLeave={() => setHoverStar(0)}>
                     {[1, 2, 3, 4, 5].map((n) => {
                       // Hovering star N previews a fill of 1..N; the actual
@@ -2200,7 +2200,7 @@ export default function CardScreen() {
                 </svg>
               </button>
               <div style={{ fontSize: 23, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 4 }}>Download the card</div>
-              <p style={{ fontSize: 13.5, color: 'var(--ink-3)', lineHeight: 1.4, margin: '0 0 22px' }}>A two-page PDF — the cover, then everyone's inside spread.</p>
+              <p style={{ fontSize: 13.5, color: 'var(--ink-3)', lineHeight: 1.4, margin: '0 0 22px' }}>A two-page PDF — the cover, and everyone's content.</p>
 
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>Choose a size</span>
@@ -2248,7 +2248,6 @@ export default function CardScreen() {
                 </svg>
                 {pdfBusy ? 'Preparing…' : 'Download as PDF'}
               </button>
-              <p style={{ fontSize: 12.5, color: 'var(--ink-4)', lineHeight: 1.45, margin: '10px 0 0' }}>Free to download as many times as you like.</p>
             </div>
           </div>
         )}

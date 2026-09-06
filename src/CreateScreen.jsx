@@ -184,7 +184,7 @@ export default function CreateScreen() {
         }}
       >
         <div style={{ width: '100%', maxWidth: '500px', margin: 'auto', animation: 'fadeUp .5s var(--ease-out)' }}>
-          <div data-masthead="" style={{ marginBottom: '34px' }}>
+          <div data-masthead="" style={{ marginBottom: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <svg width="29" height="34" viewBox="13 3 56 66" fill="none" style={{ display: 'block', flexShrink: 0 }} aria-label="Warmly">
                 <rect x="48.5332" y="5.04541" width="7.46" height="52.1592" rx="3.73" transform="rotate(41.5282 48.5332 5.04541)" fill="var(--orange)" />
@@ -294,7 +294,7 @@ export default function CreateScreen() {
             Pick the size now — it stays fixed so everyone's messages keep their place.
           </p>
 
-          <p style={{ fontSize: 13.5, color: 'var(--ink-4)', margin: '0 0 12px', textAlign: 'center' }}>
+          <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: '0 0 12px', textAlign: 'left' }}>
             Fits up to 20 signers — perfect for most groups
           </p>
           <button data-hov="dark" onClick={createTheCard} disabled={busy} style={primaryBtnStyle}>
