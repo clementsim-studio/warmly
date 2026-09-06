@@ -203,7 +203,8 @@ export default function CreateScreen() {
             Start a card everyone can sign.
           </h1>
           <p data-startsub="" style={{ fontSize: 17, lineHeight: 1.5, color: 'var(--ink-3)', margin: '0 0 20px', maxWidth: 420 }}>
-            One card, one link. Your people add a note, a doodle, a photo — from anywhere. No sign-ups, no chasing.
+            One card, one link. Add a note, a doodle, a photo, from anywhere. No sign-ups. Completely free.{' '}
+            <span style={{ fontSize: 13.5 }}>(Up to 20 people per card)</span>
           </p>
 
           <div
