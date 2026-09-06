@@ -197,6 +197,13 @@ input:hover:not(:focus) {
   background: color-mix(in srgb, var(--sunken) 55%, var(--white)) !important;
 }
 
+/* Menu rows (the credit popover's LinkedIn / GitHub links) want a firmer
+   hover than the gentle wash above — you should be sure which row you're
+   about to click. */
+[data-hov='menu']:hover:not(:disabled) {
+  background: var(--sunken) !important;
+}
+
 /* The active toolbar / face-toggle button (near-black) nudges a touch darker
    instead of washing grey. */
 [data-toolpill] > button[data-on]:hover,
