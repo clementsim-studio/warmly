@@ -2,6 +2,24 @@
 
 Notable changes to Warmly, newest entry first. See [DECISIONS.md](./DECISIONS.md) for the reasoning behind architectural choices, not just what changed.
 
+## 2026-09-06 (fifth design handoff)
+
+Fifth design handoff (`design_handoff_warmly/`, DESIGN_LOG 0.28.0 → 0.29.0, DECISIONS D-055 → D-056). Frontend only, no migrations — `cards.created_at` was already persisted server-side.
+
+### Changed
+- **Drawings on the Content face are communal, like stickers** — anyone can move, resize, rotate or remove another person's drawing. Text and photos stay owner-only. Three call sites in `CardScreen.jsx` gain `type === 'draw'` alongside the existing `type === 'sticker'` check (pinch `canManip`, `startMove` guard, `grabbable`). No data-model change — content drawings keep `communal: false`, same as content stickers. (D-055.)
+- **The move grip shows on every selected object**, not just a note open for editing — `showMoveGrip = grabbable && selected` (was `&& isThisEditing`). Body-drag still works; the grip just makes the selection UI consistent across stickers, drawings, photos and notes. (D-055.)
+- **Card lifespan copy names the creation date** instead of "today": "Open for signing until *Sep 20* — two weeks from *Sep 6*. After that, the card quietly closes for good." Both dates derive from `cards.created_at`, so a contributor arriving on day 10 sees the card's real dates. (DESIGN_LOG 0.29.0.)
+- **Mobile ⋯ menu and its Signatures popover now anchor to the ⋯ button**, via a dedicated `position: relative` wrapper, instead of `left:0` / `right:0` against the shared action group (which only lined up while ⋯ was the group's edge item). The ⋯ menu is centred under its button (`left:50%` + `translateX(-50%)`). (D-056.)
+
+### Added
+- **`@keyframes fadeUpCx`** in `styles.css` — a fade-up that carries `translateX(-50%)` in every frame, for popovers centred with a transform. The generic `fadeUp` animates `transform`, which overrides the inline centring for the animation's whole duration and makes the panel snap. The mobile ⋯ menu uses it. (D-056 / Hard-won constraint #12.)
+- **Credit byline on the Start screen** — "Made with ♡ by **Clement Sim**" under the Warmly wordmark (in a `data-masthead` wrapper, not a footer). The name is a `<button>` (it opens a menu, doesn't navigate) that toggles a small popover with monochrome LinkedIn + GitHub marks; closes on outside click or Escape. Links are editable constants at the top of `CreateScreen.jsx` (`CREDIT_*`).
+
+### Not changed (as instructed)
+- The Warmly Unlimited paid tier and the full-screen Preview & send page stay archived in code, unreachable.
+- Mobile top-bar order was already ⋯ · Share · Download (this codebase renders the mobile bar from its own branch, whose DOM order already produces that; the reference needs flex `order` only because it shares one DOM tree with desktop).
+
 ## 2026-09-06 (Vercel Web Analytics)
 
 Added Vercel Web Analytics **alongside** GA4 — not a replacement. `src/lib/analytics.js` and its `track()` calls are untouched.

@@ -394,9 +394,9 @@ export default function CardScreen() {
         const d0 = Math.hypot(a.x - b.x, a.y - b.y) || 1;
         const ang0 = Math.atan2(b.y - a.y, b.x - a.x);
         // With something selected, pinch resizes/rotates it; otherwise it
-        // zooms the canvas (D-054).
+        // zooms the canvas (D-054). Drawings are communal like stickers (D-055).
         const sel = live.selectedId && (live.objects || []).find((o) => o.id === live.selectedId);
-        const canManip = sel && (sel.owner_id === live.meId || sel.communal || sel.type === 'sticker' || (live.card && live.card.unlimited && live.fullControl));
+        const canManip = sel && (sel.owner_id === live.meId || sel.communal || sel.type === 'sticker' || sel.type === 'draw' || (live.card && live.card.unlimited && live.fullControl));
         if (canManip) {
           objPinchRef.current = { id: sel.id, d0, ang0, s0: sel.scale || 1, rot0: sel.rotation || 0 };
           return;
@@ -781,7 +781,10 @@ export default function CardScreen() {
     e.stopPropagation();
     if (editingId === o.id && !force) return;
     const isMine = o.owner_id === meId;
-    if (!isMine && o.type !== 'sticker' && !o.communal) {
+    // Drawings are communal like stickers — anyone may move/resize/rotate/
+    // remove them; a doodle carries no signature (D-055). Text and photos
+    // stay owner-only.
+    if (!isMine && o.type !== 'sticker' && o.type !== 'draw' && !o.communal) {
       if (card && card.unlimited) {
         if (!fullControl) {
           setConfirmControl(true);
@@ -1220,9 +1223,15 @@ export default function CardScreen() {
 
   // The 14-day lifespan is stated only in the Share dialog now — no
   // near-expiry nudge and no countdown anywhere on the canvas (D-046).
+  // Both dates derive from the server-stored cards.created_at, so a
+  // contributor arriving on day 10 sees the card's real dates rather than
+  // two weeks from their own visit (DESIGN_LOG 0.29.0).
   const DAY_MS = 24 * 60 * 60 * 1000;
-  const archivesAt = card ? new Date(new Date(card.created_at).getTime() + 14 * DAY_MS) : null;
-  const expiryDate = archivesAt ? archivesAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+  const createdAt = card ? new Date(card.created_at) : null;
+  const archivesAt = createdAt ? new Date(createdAt.getTime() + 14 * DAY_MS) : null;
+  const fmtDate = (d) => (d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '');
+  const createdDate = fmtDate(createdAt);
+  const expiryDate = fmtDate(archivesAt);
 
   const nameMap = useMemo(() => {
     const m = {};
@@ -1383,7 +1392,7 @@ export default function CardScreen() {
     const fc = unlimited && fullControl;
     const mine = o.owner_id === meId;
     const canEdit = mine || o.communal || fc;
-    const grabbable = mine || o.type === 'sticker' || o.communal || fc;
+    const grabbable = mine || o.type === 'sticker' || o.type === 'draw' || o.communal || fc;
     const selected = selectedId === o.id;
     // `editingId` is the only source of truth for "this note is open" — never
     // mirror it in a per-object flag, or a path that clears editingId without
@@ -1415,8 +1424,10 @@ export default function CardScreen() {
     };
     // Selection chrome stays visible while editing too (D-054) — the frame
     // and rotate/resize/remove handles don't disappear just because the
-    // note is open, and a dedicated move grip appears since dragging the
-    // object body while a textarea has focus would fight text selection.
+    // note is open. The move grip shows on every selected object (D-055),
+    // not just a note open for editing: on an editing note body-drag is
+    // reserved for text selection so the grip is load-bearing there, but
+    // showing it everywhere keeps the selection UI meaning one thing.
     d.showFrame = grabbable && selected;
     // Handles are chrome, not content: they sit inside an element scaled by
     // objectScale × canvasZoom, so without counter-scaling a 32px control
@@ -1433,7 +1444,7 @@ export default function CardScreen() {
     d.hRotate = { ...hBase, left: '50%', top: 0, transform: `translate(-50%,-50%) translateY(${-26 * inv}px) scale(${inv})`, border: '1.5px solid var(--blue)', cursor: 'grab' };
     d.hResize = { ...hBase, right: 0, bottom: 0, transform: `translate(50%,50%) scale(${inv})`, border: '1.5px solid var(--blue)', cursor: 'nwse-resize' };
     d.hDelete = { ...hBase, left: 0, top: 0, transform: `translate(-50%,-50%) scale(${inv})`, border: '1.5px solid var(--line-strong)', cursor: 'pointer' };
-    d.showMoveGrip = grabbable && selected && isThisEditing;
+    d.showMoveGrip = grabbable && selected;
     d.onGripMove = (e) => startMove(o, e, true);
 
     if (o.type === 'text' && o.cover_kind) {
@@ -1777,20 +1788,45 @@ export default function CardScreen() {
 
           {mobileView ? (
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button
-                onClick={() => setShowMore((s) => !s)}
-                title="More"
-                style={{ position: 'relative', width: 40, height: 40, borderRadius: 999, border: '1px solid var(--line)', background: showMore ? 'var(--ink-1)' : 'var(--white)', color: showMore ? '#fff' : 'var(--ink-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
-              >
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="5" cy="12" r="1.6"></circle>
-                  <circle cx="12" cy="12" r="1.6"></circle>
-                  <circle cx="19" cy="12" r="1.6"></circle>
-                </svg>
-                {count > 0 && (
-                  <span style={{ position: 'absolute', top: -3, right: -3, minWidth: 16, height: 16, borderRadius: 999, background: 'var(--brand)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', border: '1.5px solid var(--white)' }}>{count}</span>
+              {/* ⋯ gets its own positioning context so its menu (and the
+                  Signatures popover it opens) anchor to the button, not to
+                  the action group's edge — which only lined up while ⋯ was
+                  the last item (D-056). */}
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <button
+                  onClick={() => setShowMore((s) => !s)}
+                  title="More"
+                  style={{ position: 'relative', width: 40, height: 40, borderRadius: 999, border: '1px solid var(--line)', background: showMore ? 'var(--ink-1)' : 'var(--white)', color: showMore ? '#fff' : 'var(--ink-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+                >
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="5" cy="12" r="1.6"></circle>
+                    <circle cx="12" cy="12" r="1.6"></circle>
+                    <circle cx="19" cy="12" r="1.6"></circle>
+                  </svg>
+                  {count > 0 && (
+                    <span style={{ position: 'absolute', top: -3, right: -3, minWidth: 16, height: 16, borderRadius: 999, background: 'var(--brand)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', border: '1.5px solid var(--white)' }}>{count}</span>
+                  )}
+                </button>
+
+                {showMore && (
+                  <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: '50%', transform: 'translate(-50%,0)', width: 190, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)', padding: 6, zIndex: 140, animation: 'fadeUpCx .2s var(--ease-out)' }}>
+                    <button
+                      onClick={() => { setShowSigners(true); setShowMore(false); }}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 600, color: 'var(--ink-1)' }}
+                    >
+                      <span>Signatures</span>
+                      <span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600 }}>{unlimited ? count : `${count}/${LIMIT}`}</span>
+                    </button>
+                    <button
+                      onClick={() => { setShowMore(false); openFeedback(); }}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 600, color: 'var(--ink-1)' }}
+                    >
+                      Feedback
+                    </button>
+                  </div>
                 )}
-              </button>
+                {renderSignersPopover({ top: 'calc(100% + 8px)', right: 0 })}
+              </div>
               <button
                 onClick={() => { setShowSend(true); setShowSigners(false); setShowMore(false); setSelectedId(null); }}
                 title="Share"
@@ -1815,25 +1851,6 @@ export default function CardScreen() {
                   <path d="M12 15V3"></path>
                 </svg>
               </button>
-
-              {showMore && (
-                <div style={{ position: 'absolute', top: 48, left: 0, width: 190, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)', padding: 6, zIndex: 140, animation: 'fadeUp .2s var(--ease-out)' }}>
-                  <button
-                    onClick={() => { setShowSigners(true); setShowMore(false); }}
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 600, color: 'var(--ink-1)' }}
-                  >
-                    <span>Signatures</span>
-                    <span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600 }}>{unlimited ? count : `${count}/${LIMIT}`}</span>
-                  </button>
-                  <button
-                    onClick={() => { setShowMore(false); openFeedback(); }}
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 600, color: 'var(--ink-1)' }}
-                  >
-                    Feedback
-                  </button>
-                </div>
-              )}
-              {renderSignersPopover({ top: 52, right: 0 })}
             </div>
           ) : (
             <div style={{ justifySelf: 'end', position: 'relative', display: 'flex', alignItems: 'center', gap: 8, pointerEvents: 'auto' }}>
@@ -2124,7 +2141,7 @@ export default function CardScreen() {
                   <path d="M12 8v4l3 2"></path>
                 </svg>
                 <span style={{ fontSize: 13, color: 'var(--green-ink)', lineHeight: 1.35 }}>
-                  Open for signing until <strong style={{ fontWeight: 700 }}>{expiryDate}</strong> — two weeks from today. After that it gently rests.
+                  Open for signing until <strong style={{ fontWeight: 700 }}>{expiryDate}</strong> — two weeks from {createdDate}. After that, the card quietly closes for good.
                 </span>
               </div>
               <p style={{ fontSize: 13, color: 'var(--ink-4)', lineHeight: 1.45, margin: '2px 0 0' }}>Anyone who opens it can start writing straight away — no accounts. Up to 20 people can sign, free.</p>

@@ -120,6 +120,20 @@ a:hover {
     opacity: 1;
   }
 }
+/* For a popover centred with transform: translateX(-50%). An animated
+   transform overrides the inline style for the whole animation, so a plain
+   translateY fade discards the centring offset and the panel snaps into
+   place (constraint #12 / D-056). This keyframe carries -50% in every frame. */
+@keyframes fadeUpCx {
+  from {
+    transform: translate(-50%, 10px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
 @keyframes coverLift {
   0% {
     opacity: 1;
