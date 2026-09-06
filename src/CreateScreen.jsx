@@ -203,8 +203,7 @@ export default function CreateScreen() {
             Start a card everyone can sign.
           </h1>
           <p data-startsub="" style={{ fontSize: 17, lineHeight: 1.5, color: 'var(--ink-3)', margin: '0 0 20px', maxWidth: 420 }}>
-            One card, one link. Add a note, a doodle, a photo, from anywhere. No sign-ups. Completely free.{' '}
-            <span style={{ fontSize: 13.5 }}>(Up to 20 people per card)</span>
+            One card, one link. Add a note, a doodle, a photo, from anywhere. No sign-ups. Completely free.
           </p>
 
           <div
@@ -275,7 +274,7 @@ export default function CreateScreen() {
           >
             Card size
           </div>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 30 }}>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
             <button onClick={() => setFormat('landscape')} style={fmtCardStyle(format === 'landscape')}>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 30 }}>
                 <span style={{ width: 30, height: 20, borderRadius: 3, background: 'currentColor', opacity: 0.85, display: 'block' }} />
@@ -295,6 +294,9 @@ export default function CreateScreen() {
             Pick the size now — it stays fixed so everyone's messages keep their place.
           </p>
 
+          <p style={{ fontSize: 13.5, color: 'var(--ink-4)', margin: '0 0 12px', textAlign: 'center' }}>
+            Fits up to 20 signers — perfect for most groups
+          </p>
           <button onClick={createTheCard} disabled={busy} style={primaryBtnStyle}>
             {busy ? 'Creating…' : 'Create the card'}
           </button>
