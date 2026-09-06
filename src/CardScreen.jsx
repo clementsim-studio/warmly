@@ -1901,7 +1901,7 @@ export default function CardScreen() {
                 </button>
                 {renderSignersPopover({ top: 'calc(100% + 8px)', left: 0 })}
               </div>
-              <button data-hov="glass" onClick={() => { setShowSend(true); setShowSigners(false); setSelectedId(null); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 40, padding: '0 16px', borderRadius: 999, border: '1px solid var(--line)', background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', color: 'var(--ink-1)', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 14, cursor: 'pointer', boxShadow: 'var(--shadow-sm)', flexShrink: 0 }}>
+              <button data-hov="grey" onClick={() => { setShowSend(true); setShowSigners(false); setSelectedId(null); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 40, padding: '0 16px', borderRadius: 999, border: '1px solid var(--line)', background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', color: 'var(--ink-1)', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 14, cursor: 'pointer', boxShadow: 'var(--shadow-sm)', flexShrink: 0 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="18" cy="5" r="3"></circle>
                   <circle cx="6" cy="12" r="3"></circle>
@@ -2050,7 +2050,7 @@ export default function CardScreen() {
         </div>
 
         <div data-chrome="" data-zoompill="" style={{ position: 'absolute', bottom: 28, left: 20, zIndex: 100, display: 'flex', alignItems: 'center', gap: 2, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: 6, boxShadow: 'var(--shadow-lg)' }}>
-          <button onClick={() => setZoomAt(zoom - 0.1, window.innerWidth / 2, window.innerHeight / 2)} title="Zoom out" style={{ width: 34, height: 34, borderRadius: 999, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button data-hov="grey" onClick={() => setZoomAt(zoom - 0.1, window.innerWidth / 2, window.innerHeight / 2)} title="Zoom out" style={{ width: 34, height: 34, borderRadius: 999, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink-1)" strokeWidth="2.2" strokeLinecap="round">
               <path d="M5 12h14"></path>
             </svg>
@@ -2058,7 +2058,7 @@ export default function CardScreen() {
           <button onClick={() => setZoom(fitZoomFor(card.format))} title="Fit to screen (⌘0) — pinch or ⌘± to zoom" style={{ width: 54, height: 34, border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, color: 'var(--ink-2)' }}>
             {Math.round(zoom * 100)}%
           </button>
-          <button onClick={() => setZoomAt(zoom + 0.1, window.innerWidth / 2, window.innerHeight / 2)} title="Zoom in" style={{ width: 34, height: 34, borderRadius: 999, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button data-hov="grey" onClick={() => setZoomAt(zoom + 0.1, window.innerWidth / 2, window.innerHeight / 2)} title="Zoom in" style={{ width: 34, height: 34, borderRadius: 999, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink-1)" strokeWidth="2.2" strokeLinecap="round">
               <path d="M12 5v14M5 12h14"></path>
             </svg>
@@ -2099,6 +2099,7 @@ export default function CardScreen() {
                     {[1, 2, 3, 4, 5].map((n) => (
                       <button
                         key={n}
+                        data-star=""
                         onClick={() => setFeedbackRating(n)}
                         title={n + ' star' + (n === 1 ? '' : 's')}
                         style={{ width: 44, height: 44, borderRadius: 14, border: 'none', background: n <= feedbackRating ? 'var(--yellow-soft)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, transform: n === feedbackRating ? 'scale(1.08)' : 'none' }}
@@ -2118,6 +2119,7 @@ export default function CardScreen() {
                   <button
                     onClick={submitFeedback}
                     disabled={feedbackSubmitting}
+                    data-hov={feedbackRating ? 'dark' : undefined}
                     style={{ width: '100%', height: 50, borderRadius: 'var(--radius-pill)', border: 'none', cursor: feedbackSubmitting ? 'default' : 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 15, opacity: feedbackSubmitting ? 0.7 : 1, background: feedbackRating ? 'var(--brand)' : 'var(--sunken)', color: feedbackRating ? '#fff' : 'var(--ink-4)', boxShadow: feedbackRating ? 'var(--shadow-brand)' : 'none' }}
                   >
                     {feedbackSubmitting ? 'Sending…' : 'Send feedback'}

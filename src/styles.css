@@ -172,10 +172,14 @@ input:focus {
    --------------------------------------------------------------------------- */
 [data-hov],
 [data-toolpill] > button,
-[data-zoompill] > button,
-[data-facetoggle] > button {
+[data-facetoggle] > button,
+[data-star] {
   transition: background var(--dur-fast) var(--ease-standard),
     border-color var(--dur-fast) var(--ease-standard);
+}
+[data-star] svg {
+  transition: fill var(--dur-fast) var(--ease-standard),
+    stroke var(--dur-fast) var(--ease-standard);
 }
 input {
   transition: border-color var(--dur-fast) var(--ease-standard),
@@ -187,11 +191,12 @@ input:hover:not(:focus) {
   border-color: color-mix(in srgb, var(--orange) 45%, var(--line-strong)) !important;
 }
 
-/* Light-grey wash: occasion pills, card-size cards, secondary/ghost buttons,
-   and the toolbar / zoom / face-toggle buttons that aren't the active one. */
+/* Light-grey wash: occasion pills, card-size cards, secondary/ghost buttons
+   (Share, Feedback, Preview the card, zoom −/+), and the toolbar / face-toggle
+   buttons that aren't the active one. The zoom % button has no hover — it
+   only fits-to-screen and shouldn't look like it does more. */
 [data-hov='grey']:hover:not(:disabled),
 [data-toolpill] > button:not([data-on]):hover,
-[data-zoompill] > button:hover,
 [data-facetoggle] > button:not([data-on]):hover {
   background: var(--sunken) !important;
 }
@@ -203,15 +208,18 @@ input:hover:not(:focus) {
   background: var(--brand-active) !important;
 }
 
-/* Glass pills (Share, and the top-bar chrome buttons) go from translucent to
-   solid white. */
-[data-hov='glass']:hover:not(:disabled) {
-  background: var(--white) !important;
-}
-
-/* Primary / dark buttons: Create the card, Download, Copy link. */
+/* Primary / dark buttons: Create the card, Download, Copy link, Send feedback. */
 [data-hov='dark']:hover:not(:disabled) {
   background: var(--brand-hover) !important;
+}
+
+/* Feedback stars — the hovered one lights up yellow so it reads as pickable. */
+[data-star]:hover {
+  background: var(--yellow-soft) !important;
+}
+[data-star]:hover svg {
+  fill: var(--yellow) !important;
+  stroke: var(--yellow) !important;
 }
 
 button {
