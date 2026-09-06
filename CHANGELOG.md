@@ -2,6 +2,19 @@
 
 Notable changes to Warmly, newest entry first. See [DECISIONS.md](./DECISIONS.md) for the reasoning behind architectural choices, not just what changed.
 
+## 2026-09-06 (Vercel Web Analytics)
+
+Added Vercel Web Analytics **alongside** GA4 — not a replacement. `src/lib/analytics.js` and its `track()` calls are untouched.
+
+### Added
+- **`@vercel/analytics`** (`^2.0.1`) + `<Analytics />` from `@vercel/analytics/react` (the framework-agnostic React entry — confirmed via the package's own `exports` map; **not** `/next`, which is Next-specific). Mounted once at the app root in `src/main.jsx`, inside `<BrowserRouter>` next to `<Routes>`.
+- Automatic page-view tracking, including client-side route changes.
+
+### Notes
+- **No env vars, no config.** Vercel injects a build-time seed and serves the script + intake endpoints from the deployment itself (v2 "Resilient Intake"). It only transmits when running on a Vercel deployment with Web Analytics enabled (already toggled on in the dashboard); locally `mode: 'auto'` resolves to development and just console-logs.
+- **Cookieless, no consent banner needed.** Per Vercel's privacy docs: no cookies (first- or third-party), no `localStorage` identifier, visitors identified by a per-request hash that is discarded after 24h, and "not tied to or associated with any individual, customer, or IP address." This is the opposite situation from GA4, whose `_ga` cookies are why that integration runs Consent Mode denied-by-default.
+- Runs independently of GA4 — the two send to separate backends and don't share any state.
+
 ## 2026-09-06 (Google Analytics 4)
 
 Added GA4 (`G-YTCHNXCYDV`) for basic product analytics. Frontend only, no migrations. Off in dev and on any build where `VITE_GA4_MEASUREMENT_ID` is unset.
