@@ -106,6 +106,7 @@ export default function CardScreen() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackStage, setFeedbackStage] = useState('open');
   const [feedbackRating, setFeedbackRating] = useState(0);
+  const [hoverStar, setHoverStar] = useState(0);
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackDone, setFeedbackDone] = useState(false);
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
@@ -1124,6 +1125,7 @@ export default function CardScreen() {
     setShowFeedback(false);
     setFeedbackStage('open');
     setFeedbackRating(0);
+    setHoverStar(0);
     setFeedbackText('');
   };
   const submitFeedback = async () => {
@@ -2055,9 +2057,9 @@ export default function CardScreen() {
               <path d="M5 12h14"></path>
             </svg>
           </button>
-          <button onClick={() => setZoom(fitZoomFor(card.format))} title="Fit to screen (⌘0) — pinch or ⌘± to zoom" style={{ width: 54, height: 34, border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, color: 'var(--ink-2)' }}>
+          <div title="⌘0 or pinch to fit to screen" style={{ width: 54, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, color: 'var(--ink-2)', userSelect: 'none' }}>
             {Math.round(zoom * 100)}%
-          </button>
+          </div>
           <button data-hov="grey" onClick={() => setZoomAt(zoom + 0.1, window.innerWidth / 2, window.innerHeight / 2)} title="Zoom in" style={{ width: 34, height: 34, borderRadius: 999, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink-1)" strokeWidth="2.2" strokeLinecap="round">
               <path d="M12 5v14M5 12h14"></path>
@@ -2095,20 +2097,26 @@ export default function CardScreen() {
                 <div>
                   <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 4 }}>How was making this card?</div>
                   <p style={{ fontSize: 13.5, color: 'var(--ink-3)', lineHeight: 1.4, margin: '0 0 20px' }}>Two seconds, and it genuinely helps.</p>
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <button
-                        key={n}
-                        data-star=""
-                        onClick={() => setFeedbackRating(n)}
-                        title={n + ' star' + (n === 1 ? '' : 's')}
-                        style={{ width: 44, height: 44, borderRadius: 14, border: 'none', background: n <= feedbackRating ? 'var(--yellow-soft)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, transform: n === feedbackRating ? 'scale(1.08)' : 'none' }}
-                      >
-                        <svg width="26" height="26" viewBox="0 0 24 24" fill={n <= feedbackRating ? 'var(--yellow)' : 'none'} stroke={n <= feedbackRating ? 'var(--yellow)' : 'var(--ink-4)'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M12 3l2.7 5.8 6.3.6-4.8 4.2 1.4 6.2L12 16.9 6.4 19.8l1.4-6.2L3 9.4l6.3-.6z"></path>
-                        </svg>
-                      </button>
-                    ))}
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 20 }} onMouseLeave={() => setHoverStar(0)}>
+                    {[1, 2, 3, 4, 5].map((n) => {
+                      // Hovering star N previews a fill of 1..N; the actual
+                      // pick shows once the mouse leaves. Touch has no hover,
+                      // so it just falls back to feedbackRating.
+                      const lit = n <= (hoverStar || feedbackRating);
+                      return (
+                        <button
+                          key={n}
+                          onClick={() => setFeedbackRating(n)}
+                          onMouseEnter={() => setHoverStar(n)}
+                          title={n + ' star' + (n === 1 ? '' : 's')}
+                          style={{ width: 44, height: 44, borderRadius: 14, border: 'none', background: lit ? 'var(--yellow-soft)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, transform: n === feedbackRating ? 'scale(1.08)' : 'none', transition: 'background var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-bounce)' }}
+                        >
+                          <svg width="26" height="26" viewBox="0 0 24 24" fill={lit ? 'var(--yellow)' : 'none'} stroke={lit ? 'var(--yellow)' : 'var(--ink-4)'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'fill var(--dur-fast) var(--ease-standard), stroke var(--dur-fast) var(--ease-standard)' }}>
+                            <path d="M12 3l2.7 5.8 6.3.6-4.8 4.2 1.4 6.2L12 16.9 6.4 19.8l1.4-6.2L3 9.4l6.3-.6z"></path>
+                          </svg>
+                        </button>
+                      );
+                    })}
                   </div>
                   <textarea
                     value={feedbackText}
@@ -2212,6 +2220,7 @@ export default function CardScreen() {
                   return (
                     <button
                       key={id}
+                      data-hov="grey"
                       onClick={() => setPrintSize(id)}
                       style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '12px 8px 13px', borderRadius: 'var(--radius-lg)', cursor: 'pointer', fontFamily: 'var(--font-sans)', background: sel ? 'var(--sunken)' : 'var(--white)', border: sel ? '1.5px solid var(--ink-1)' : '1.5px solid var(--line-strong)', color: 'var(--ink-1)', boxShadow: sel ? 'var(--shadow-sm)' : 'var(--shadow-xs)' }}
                     >
