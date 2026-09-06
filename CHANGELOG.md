@@ -2,6 +2,25 @@
 
 Notable changes to Warmly, newest entry first. See [DECISIONS.md](./DECISIONS.md) for the reasoning behind architectural choices, not just what changed.
 
+## 2026-09-06 (Google Analytics 4)
+
+Added GA4 (`G-YTCHNXCYDV`) for basic product analytics. Frontend only, no migrations. Off in dev and on any build where `VITE_GA4_MEASUREMENT_ID` is unset.
+
+### Added
+- **`src/lib/analytics.js`** — GA4 loader + `track()` helper. `gtag.js` is injected `async` from JS (never blocks first paint), and only when `import.meta.env.PROD` **and** `VITE_GA4_MEASUREMENT_ID` is set. Consent Mode v2 defaults to `denied` for `ad_storage` / `ad_user_data` / `ad_personalization` / `analytics_storage` — no consent banner yet, so GA4 runs cookieless and models the gaps. `send_page_view` is off; the one page_view and every custom event are sent with the card UUID stripped from `page_location` / `page_path` (`/c/<uuid>` → `/c/:id`).
+- **Four custom events**, each at its real success point:
+  - `card_created` — `CreateScreen.jsx`, after `createCard()` resolves. Params: `occasion`, `format`.
+  - `card_shared` — `ShareScreen.jsx` and `CardScreen.jsx` `copyLink()`, after the clipboard write. Params: `method: 'copy_link'`, `location: 'share_screen' | 'card_screen'`, `occasion`, `format`.
+  - `card_signed` — `CardScreen.jsx` `commitBox()`, after a pending `type: 'text'` object with an `owner_id` is inserted (matches `enforce_signature_cap`'s `type='text' AND owner_id IS NOT NULL`; cover-template text can't reach this branch). Params: `occasion`, `format`.
+  - `feedback_submitted` — `CardScreen.jsx` `submitFeedback()`, after the `/api/feedback` POST returns ok. Params: `rating` (1–5), `occasion`, `format`.
+- **`VITE_GA4_MEASUREMENT_ID`** env var — added to `.env.example` and the README env table. Set it in Vercel (Production; Preview optional) to switch analytics on.
+
+### Notes
+- No PII in any event: no names, no note text, no card/signer IDs. This is consistent with the app's existing posture (no accounts, hashed IPs in feedback, unguessable links).
+- GA4 does not store IP addresses at all, so no IP-anonymization config is needed or possible — see DECISIONS.md.
+- The consent posture (denied-by-default, cookieless) is a deliberate interim choice; a real consent banner is the follow-up if Warmly gets meaningful EU traffic. Documented in DECISIONS.md ("GA4 analytics").
+- `occasion` / `format` / `method` / `location` / `rating` must be registered as custom dimensions in the GA4 UI to appear in reports.
+
 ## 2026-09-06 (purge job broken by key rotation — fix deferred)
 
 Rotating the Supabase project secret key left `purge-expired-cards` comparing incoming requests against a stale auto-injected `SUPABASE_SERVICE_ROLE_KEY` that Supabase hadn't re-synced — the function now returns `401 {"error":"unauthorized"}` on every call and deletes nothing. Root cause confirmed by SHA-256 digest comparison (the injected value matched none of the project's current keys). Nothing user-facing is affected — the 14-day read-only freeze is a DB trigger, independent of this job.

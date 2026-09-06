@@ -73,8 +73,13 @@ This creates `cards`, `signers`, `card_objects`, RLS policies, the signature-cap
 |---|---|
 | `VITE_SUPABASE_URL` | `src/lib/supabase.js` |
 | `VITE_SUPABASE_ANON_KEY` | `src/lib/supabase.js` |
+| `VITE_GA4_MEASUREMENT_ID` | `src/lib/analytics.js` — optional; analytics load only when set **and** the build is production |
 
 These are safe to expose client-side (that's what the anon/publishable key is for) — but still keep `.env` out of git (it already is, via `.gitignore`) and set them via your host's environment variable UI in production, not hardcoded.
+
+## Analytics
+
+GA4 (`src/lib/analytics.js`), loaded only in production and only when `VITE_GA4_MEASUREMENT_ID` is set — `gtag.js` is injected async so it never blocks first paint. Consent Mode v2 defaults to **denied** for all storage (there's no consent banner yet), so GA4 runs cookieless and models the gaps. Four custom events — `card_created`, `card_shared`, `card_signed`, `feedback_submitted` — fire at their success points; params are limited to non-PII (`occasion`, `format`, `method`, `location`, `rating`) and the card UUID is stripped from `page_location`/`page_path` on every hit. See DECISIONS.md ("GA4 analytics") for the full list of what is and isn't tracked, and register the event params as custom dimensions in the GA4 UI to see them in reports.
 
 ## Deploying
 

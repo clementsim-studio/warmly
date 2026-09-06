@@ -8,6 +8,7 @@ import { stickerSvg, COVERS } from './lib/stickers';
 import { cardDims, objectsToHTML, seedCoverObjects, leafShadowSvg } from './lib/canvasHtml';
 import { occasionInfo } from './lib/occasions';
 import { FEATURE_MONETIZATION, FEATURE_PREVIEW_AND_SEND_PAGE } from './lib/featureFlags';
+import { track } from './lib/analytics.js';
 import ObjectView from './ObjectView.jsx';
 
 const LIMIT = 20;
@@ -752,6 +753,9 @@ export default function CardScreen() {
         try {
           await db.insertObject(rest);
           setObjects((prev) => prev.map((x) => (x.id === id ? { ...x, pending: false, promptSign: shouldPrompt } : x)));
+          if (rest.type === 'text' && rest.owner_id) {
+            track('card_signed', { occasion: card?.occasion, format: card?.format });
+          }
         } catch (err) {
           setObjects((prev) => prev.filter((x) => x.id !== id));
           if (db.isCapRejection(err)) {
@@ -1054,6 +1058,12 @@ export default function CardScreen() {
     } catch {
       // ignore
     }
+    track('card_shared', {
+      method: 'copy_link',
+      location: 'card_screen',
+      occasion: card?.occasion,
+      format: card?.format,
+    });
     setCopied(true);
     showToast('Link copied — go share it!');
     copyTimerRef.current && clearTimeout(copyTimerRef.current);
@@ -1109,6 +1119,11 @@ export default function CardScreen() {
         body: JSON.stringify({ cardId, signerId: meId, rating: feedbackRating, comment: feedbackText }),
       });
       if (!res.ok) throw new Error('feedback_submit_failed');
+      track('feedback_submitted', {
+        rating: feedbackRating,
+        occasion: card?.occasion,
+        format: card?.format,
+      });
       setFeedbackStage('sent');
       setFeedbackDone(true);
     } catch (err) {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createCard, isDailyLimitRejection } from './lib/cardData';
 import { OCCASIONS, OCCASION_KEYS } from './lib/occasions';
+import { track } from './lib/analytics.js';
 
 const occStyle = (sel) => ({
   display: 'inline-flex',
@@ -68,6 +69,7 @@ export default function CreateScreen() {
     setError(null);
     try {
       const card = await createCard({ recipient, occasion, format, coverColor: 'blue' });
+      track('card_created', { occasion, format });
       navigate(`/share/${card.id}`);
     } catch (e) {
       setBusy(false);

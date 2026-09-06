@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getCard } from './lib/cardData';
+import { track } from './lib/analytics.js';
 
 export default function ShareScreen() {
   const { id } = useParams();
@@ -31,6 +32,12 @@ export default function ShareScreen() {
     } catch {
       // ignore
     }
+    track('card_shared', {
+      method: 'copy_link',
+      location: 'share_screen',
+      occasion: card.occasion,
+      format: card.format,
+    });
     setCopied(true);
     setTimeout(() => setCopied(false), 2200);
   };

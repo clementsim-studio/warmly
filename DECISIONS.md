@@ -263,3 +263,28 @@ After this, rotating any Supabase API key never touches the purge job again.
 **6. Trigger to revisit**: if Warmly starts getting meaningful real-user traffic. Without the purge running, real (not just test) card rows and uploaded photos accumulate in Postgres and Storage with nothing ever removing them.
 
 **No immediate urgency**: the pre-launch data wipe (`supabase/scripts/wipe_user_data.sql` + `clear_storage.mjs`) already cleared the accumulated **test** cards manually, so there is no backlog pressing on this right now. The gap is purely forward-looking — real user data created from now on will not be auto-purged until the fix above is applied.
+
+## GA4 analytics — what's tracked, and what deliberately isn't
+
+**Decision**: GA4 (`src/lib/analytics.js`) is the one analytics integration. `gtag.js` loads only when `import.meta.env.PROD` **and** `VITE_GA4_MEASUREMENT_ID` is set — so it's off in `vite dev`, off in previews, and switched on purely by setting the Vercel env var. The script tag is injected `async` from JS rather than hard-coded in `index.html`, so it never blocks first paint and the dev/prod gate lives in one place.
+
+**Events** — four custom events, each fired at the point the action actually succeeds, not when its UI opens:
+
+| Event | Where it fires | Params |
+|---|---|---|
+| `card_created` | `CreateScreen.jsx` `createTheCard()`, right after `await createCard()` resolves (before `navigate`) | `occasion`, `format` |
+| `card_shared` | `ShareScreen.jsx` `copyLink()` **and** `CardScreen.jsx` `copyLink()`, after the clipboard write | `method: 'copy_link'`, `location: 'share_screen' \| 'card_screen'`, `occasion`, `format` |
+| `card_signed` | `CardScreen.jsx` `commitBox()`, after a pending `type: 'text'` object with a non-null `owner_id` is inserted | `occasion`, `format` |
+| `feedback_submitted` | `CardScreen.jsx` `submitFeedback()`, after `/api/feedback` returns ok | `rating` (1–5), `occasion`, `format` |
+
+`card_signed` is gated `rest.type === 'text' && rest.owner_id` — the same shape as the server's `enforce_signature_cap` (`type='text' AND owner_id IS NOT NULL`). Cover-template text pieces are seeded via `insertObjects` and updated via `commitBox`'s `else` branch, so they never hit the `if (o.pending)` insert and never fire this event. It fires once per note added (an engagement signal), not once per distinct signer.
+
+**No PII, by rule**: event params carry the action plus at most `occasion` / `format` / `method` / `location` / `rating` — never a name, never note text, never a `card_id` or `signer_id`. Because GA4 auto-attaches `page_location` / `page_path` to every hit and the card URL is `/c/<uuid>`, `analytics.js` runs a regex scrub (`/c/<uuid>` → `/c/:id`, same for `/share/`) on `page_location` and `page_path` for the page_view and every `track()` call, so a real, lookup-able card id never leaves the browser. This matches the rest of the app's posture: no accounts, hashed IPs in feedback, UUID links chosen partly so they're unguessable.
+
+**IP addresses — nothing to configure**: GA4 does not log or store IPs at all (the Universal Analytics `anonymize_ip` flag no longer exists and is not needed). Google derives coarse geo from the IP in transit, then discards it. So there's no IP setting to align with the feedback feature's `ip_hash` — GA4 already keeps less than Warmly's own DB does.
+
+**Consent — denied by default, cookieless, no banner yet**: `initAnalytics()` sets Consent Mode v2 `default` to `denied` for `ad_storage`, `ad_user_data`, `ad_personalization`, and `analytics_storage` before `config`. GA4 then runs cookieless — it sends pings, sets no `_ga` cookie, and Google models the gaps. This is a deliberate interim posture: it keeps basic measurement working without dropping non-essential cookies on EU/UK visitors who haven't consented, which the app has no mechanism to ask for.
+
+**Trigger to revisit**: if Warmly gets meaningful real-user traffic, especially from the EU/UK. The proper fix is a lightweight consent banner that only calls `initAnalytics()` (or flips `analytics_storage` to `granted`) after opt-in. Until then, denied-by-default cookieless is the accepted trade — lower data fidelity for not having to ship a consent UI for a pre-launch, low-traffic app.
+
+**GA4 console settings** (not in code, set in the property): data retention → 2 months (Admin → Data Settings → Data Retention; default is often 14); Google Signals → off (no ads product); and the five event params above must be registered as custom dimensions or they won't show in reports.

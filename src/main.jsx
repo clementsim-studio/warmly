@@ -5,6 +5,9 @@ import './styles.css';
 import CreateScreen from './CreateScreen.jsx';
 import ShareScreen from './ShareScreen.jsx';
 import CardScreen from './CardScreen.jsx';
+import { initAnalytics } from './lib/analytics.js';
+
+initAnalytics();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
