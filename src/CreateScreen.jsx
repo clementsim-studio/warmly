@@ -46,19 +46,22 @@ function CreditByline() {
   }, [open]);
 
   return (
-    <div ref={wrapRef} data-credit="" style={{ position: 'relative', margin: '7px 0 0 1px', display: 'flex', alignItems: 'center' }}>
+    <div ref={wrapRef} data-credit="" style={{ margin: '7px 0 0 1px', display: 'flex', alignItems: 'center' }}>
       <span style={{ fontSize: 12.5, lineHeight: 1.4, color: 'var(--ink-4)' }}>{CREDIT_PREFIX}</span>
+      {/* own positioning context so the menu centres under the name, not
+          the whole "Made with ♡ by …" row (D-056) */}
+      <span style={{ position: 'relative', display: 'inline-flex', marginLeft: 4 }}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-haspopup="menu"
-        style={{ border: 'none', background: 'transparent', padding: 0, margin: 0, marginLeft: 4, font: 'inherit', fontSize: 12.5, lineHeight: 1.4, fontWeight: 600, color: 'var(--ink-3)', cursor: 'pointer', borderBottom: '1px solid transparent' }}
+        style={{ border: 'none', background: 'transparent', padding: 0, margin: 0, font: 'inherit', fontSize: 12.5, lineHeight: 1.4, fontWeight: 600, color: 'var(--ink-3)', cursor: 'pointer', borderBottom: '1px solid transparent' }}
       >
         {CREDIT_NAME}
       </button>
       {open && (
-        <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 151, minWidth: 186, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)', padding: 6, animation: 'fadeUp .18s var(--ease-out)' }}>
+        <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)', zIndex: 151, minWidth: 186, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)', padding: 6, animation: 'fadeUpCx .18s var(--ease-out)' }}>
           <a href={CREDIT_LINKEDIN_URL} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)} style={creditPopRow}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0, opacity: 0.75 }}>
               <path d="M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.63-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.07 2.07 0 1 1 0-4.14 2.07 2.07 0 0 1 0 4.14zm1.78 13.02H3.55V9h3.57v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z" />
@@ -73,6 +76,7 @@ function CreditByline() {
           </a>
         </div>
       )}
+      </span>
     </div>
   );
 }
