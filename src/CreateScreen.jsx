@@ -300,9 +300,6 @@ export default function CreateScreen() {
           {error && (
             <p style={{ fontSize: 13.5, color: 'var(--danger-ink)', margin: '14px 0 0', textAlign: 'center' }}>{error}</p>
           )}
-          <p style={{ fontSize: 13.5, color: 'var(--ink-4)', margin: '14px 0 0', textAlign: 'center' }}>
-            You'll design the front and write inside once you're in.
-          </p>
         </div>
       </div>
     </div>

@@ -2133,7 +2133,7 @@ export default function CardScreen() {
                   <path d="M18 6L6 18M6 6l12 12"></path>
                 </svg>
               </button>
-              <h2 style={{ fontSize: 27, fontWeight: 700, letterSpacing: '-0.025em', margin: '0 0 8px', lineHeight: 1.1 }}>Share {recipientName}'s card</h2>
+              <h2 style={{ fontSize: 27, fontWeight: 700, letterSpacing: '-0.025em', margin: '0 0 8px', lineHeight: 1.1 }}>Share card</h2>
               <p style={{ fontSize: 15, color: 'var(--ink-3)', margin: '0 0 24px', lineHeight: 1.5 }}>Invite people to sign — anyone with the link can add to the card.</p>
               <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--ink-3)', marginBottom: 9 }}>Invite people to sign</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--sunken)', borderRadius: 'var(--radius-md)', padding: '6px 6px 6px 16px', marginBottom: 22 }}>
@@ -2151,7 +2151,6 @@ export default function CardScreen() {
                   Open for signing until <strong style={{ fontWeight: 700 }}>{expiryDate}</strong> — two weeks from {createdDate}. After that, the card quietly closes for good.
                 </span>
               </div>
-              <p style={{ fontSize: 13, color: 'var(--ink-4)', lineHeight: 1.45, margin: '2px 0 0' }}>Anyone who opens it can start writing straight away — no accounts. Up to 20 people can sign, free.</p>
             </div>
           </div>
         )}
