@@ -1659,11 +1659,13 @@ export default function CardScreen() {
   const mockH = Math.round(dims.h * mockK);
 
   // Shared between the desktop Signatures pill and the mobile ⋯ overflow —
-  // same popover, two different triggers/anchors. Desktop anchors to the
-  // pill's own wrapper (left:0); mobile anchors to the ⋯ icon group (right:0)
-  // — it was appearing under Download when both used the same right:0.
+  // same popover, two different triggers/anchors. Desktop: absolute, under
+  // the pill's own wrapper (left:0). Mobile: fixed, pinned below the top bar
+  // at the screen's right edge — it's wider than the ⋯ menu and ⋯ sits too
+  // close to the edge to centre it there without clipping.
+  // `width:250` sits before `...anchor` so the mobile call can relax it.
   const renderSignersPopover = (anchor) => showSigners && (
-    <div style={{ position: 'absolute', ...anchor, width: 250, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)', padding: '16px 18px', animation: 'fadeUp .2s var(--ease-out)', zIndex: 140 }}>
+    <div style={{ position: 'absolute', width: 250, ...anchor, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)', padding: '16px 18px', animation: 'fadeUp .2s var(--ease-out)', zIndex: 140 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
         <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>Signatures</span>
         <span style={{ fontSize: 12, fontWeight: 700, color: full ? 'var(--green-ink)' : 'var(--ink-3)' }}>
@@ -1825,7 +1827,12 @@ export default function CardScreen() {
                     </button>
                   </div>
                 )}
-                {renderSignersPopover({ top: 'calc(100% + 8px)', right: 0 })}
+                {/* The signatures panel is wider than the ⋯ menu and ⋯ sits
+                    close to the screen edge, so it can't be centred under the
+                    button without overflowing. Pin it below the bar, flush to
+                    the right of the ⋯/Share/Download cluster, clamped so it
+                    can never be cut off. */}
+                {renderSignersPopover({ position: 'fixed', top: 'calc(var(--m-topbar, 56px) + 8px)', right: 12, maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100vh - var(--m-topbar, 56px) - 24px)', overflow: 'auto' })}
               </div>
               <button
                 onClick={() => { setShowSend(true); setShowSigners(false); setShowMore(false); setSelectedId(null); }}
