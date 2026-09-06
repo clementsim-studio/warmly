@@ -168,11 +168,29 @@ export default function CardScreen() {
   // React has flushed the state updates from the first call yet.
   const commitBoxRef = useRef(null);
 
+  // Wraps the Signatures trigger + its popover (desktop pill / mobile ⋯
+  // group — only one is mounted). Used to close the popover on any
+  // pointer-down outside it.
+  const sigWrapRef = useRef(null);
+
   const showToast = useCallback((msg) => {
     setToast(msg);
     toastTimerRef.current && clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToast(null), 2800);
   }, []);
+
+  // Close the Signatures popover on any pointer-down outside it. Previously
+  // only a tap on the bare canvas surface closed it (onSurfaceDown), so a
+  // click on the toolbar, the chrome, or an object left it stuck open.
+  // Capture phase so chrome that stops propagation can't block it.
+  useEffect(() => {
+    if (!showSigners) return undefined;
+    const onDown = (e) => {
+      if (sigWrapRef.current && !sigWrapRef.current.contains(e.target)) setShowSigners(false);
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    return () => document.removeEventListener('pointerdown', onDown, true);
+  }, [showSigners]);
 
   // ---- initial load -------------------------------------------------------
   useEffect(() => {
@@ -1794,7 +1812,7 @@ export default function CardScreen() {
                   Signatures popover it opens) anchor to the button, not to
                   the action group's edge — which only lined up while ⋯ was
                   the last item (D-056). */}
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+              <div ref={sigWrapRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                 <button
                   onClick={() => setShowMore((s) => !s)}
                   title="More"
@@ -1861,7 +1879,7 @@ export default function CardScreen() {
             </div>
           ) : (
             <div style={{ justifySelf: 'end', position: 'relative', display: 'flex', alignItems: 'center', gap: 8, pointerEvents: 'auto' }}>
-              <div style={{ position: 'relative' }}>
+              <div ref={sigWrapRef} style={{ position: 'relative' }}>
                 <button onClick={() => setShowSigners((s) => !s)} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: '6px 12px 6px 10px', boxShadow: 'var(--shadow-sm)', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
                     {signersAvatars.map((s) => (
