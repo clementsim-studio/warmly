@@ -252,7 +252,7 @@ export default function CreateScreen() {
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
             {OCCASION_KEYS.map((key) => (
-              <button key={key} onClick={() => setOccasion(key)} style={occStyle(occasion === key)}>
+              <button key={key} data-hov="grey" onClick={() => setOccasion(key)} style={occStyle(occasion === key)}>
                 <span style={{ fontSize: 17, lineHeight: 1 }}>{OCCASIONS[key].emoji}</span>
                 <span>{OCCASIONS[key].label}</span>
               </button>
@@ -275,14 +275,14 @@ export default function CreateScreen() {
             Card size
           </div>
           <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
-            <button onClick={() => setFormat('landscape')} style={fmtCardStyle(format === 'landscape')}>
+            <button data-hov="grey" onClick={() => setFormat('landscape')} style={fmtCardStyle(format === 'landscape')}>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 30 }}>
                 <span style={{ width: 30, height: 20, borderRadius: 3, background: 'currentColor', opacity: 0.85, display: 'block' }} />
               </div>
               <span style={{ fontWeight: 700, fontSize: 15 }}>Landscape</span>
               <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Wider than it is tall</span>
             </button>
-            <button onClick={() => setFormat('portrait')} style={fmtCardStyle(format === 'portrait')}>
+            <button data-hov="grey" onClick={() => setFormat('portrait')} style={fmtCardStyle(format === 'portrait')}>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 30 }}>
                 <span style={{ width: 20, height: 28, borderRadius: 3, background: 'currentColor', opacity: 0.85, display: 'block' }} />
               </div>
@@ -297,7 +297,7 @@ export default function CreateScreen() {
           <p style={{ fontSize: 13.5, color: 'var(--ink-4)', margin: '0 0 12px', textAlign: 'center' }}>
             Fits up to 20 signers — perfect for most groups
           </p>
-          <button onClick={createTheCard} disabled={busy} style={primaryBtnStyle}>
+          <button data-hov="dark" onClick={createTheCard} disabled={busy} style={primaryBtnStyle}>
             {busy ? 'Creating…' : 'Create the card'}
           </button>
           {error && (

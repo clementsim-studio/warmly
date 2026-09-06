@@ -163,6 +163,57 @@ input:focus {
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
+/* ---------------------------------------------------------------------------
+   Hover states. Everything is styled inline, and an inline style always wins
+   over a stylesheet rule for the same property regardless of specificity, so
+   these use !important — the same pattern as input:focus above and the
+   mobile [data-*] overrides below. Hooked on a small `data-hov` attribute,
+   plus the existing container attrs for the toolbar / zoom / face toggle.
+   --------------------------------------------------------------------------- */
+[data-hov],
+[data-toolpill] > button,
+[data-zoompill] > button,
+[data-facetoggle] > button {
+  transition: background var(--dur-fast) var(--ease-standard),
+    border-color var(--dur-fast) var(--ease-standard);
+}
+input {
+  transition: border-color var(--dur-fast) var(--ease-standard),
+    box-shadow var(--dur-fast) var(--ease-standard);
+}
+
+/* Name input — a lighter tint of the orange it takes on focus. */
+input:hover:not(:focus) {
+  border-color: color-mix(in srgb, var(--orange) 45%, var(--line-strong)) !important;
+}
+
+/* Light-grey wash: occasion pills, card-size cards, secondary/ghost buttons,
+   and the toolbar / zoom / face-toggle buttons that aren't the active one. */
+[data-hov='grey']:hover:not(:disabled),
+[data-toolpill] > button:not([data-on]):hover,
+[data-zoompill] > button:hover,
+[data-facetoggle] > button:not([data-on]):hover {
+  background: var(--sunken) !important;
+}
+
+/* The active toolbar / face-toggle button (near-black) nudges a touch darker
+   instead of washing grey. */
+[data-toolpill] > button[data-on]:hover,
+[data-facetoggle] > button[data-on]:hover {
+  background: var(--brand-active) !important;
+}
+
+/* Glass pills (Share, and the top-bar chrome buttons) go from translucent to
+   solid white. */
+[data-hov='glass']:hover:not(:disabled) {
+  background: var(--white) !important;
+}
+
+/* Primary / dark buttons: Create the card, Download, Copy link. */
+[data-hov='dark']:hover:not(:disabled) {
+  background: var(--brand-hover) !important;
+}
+
 button {
   font-family: var(--font-sans);
 }

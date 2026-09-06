@@ -119,6 +119,7 @@ export default function ShareScreen() {
             </span>
             <button
               onClick={copyLink}
+              data-hov={copied ? undefined : 'dark'}
               style={{
                 height: 42,
                 padding: '0 20px',
@@ -143,6 +144,7 @@ export default function ShareScreen() {
 
           <button
             onClick={() => navigate(`/c/${id}`)}
+            data-hov="grey"
             style={{
               width: 'auto',
               height: 54,

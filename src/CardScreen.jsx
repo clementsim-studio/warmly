@@ -1571,6 +1571,9 @@ export default function CardScreen() {
   }
 
   const tb = (active) => ({ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, width: 60, padding: '8px 0', borderRadius: 16, border: 'none', cursor: 'pointer', background: active ? 'var(--ink-1)' : 'transparent', color: active ? '#fff' : 'var(--ink-2)', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600, transition: 'background var(--dur-base) var(--ease-standard),color var(--dur-base)' });
+  // Spread onto a toolbar <button>: style + a data-on marker so styles.css can
+  // give the active (dark) button a different hover than the inactive ones.
+  const tbProps = (active) => ({ style: tb(active), 'data-on': active ? '' : undefined });
   const selObj = selectedId ? objects.find((o) => o.id === selectedId) : null;
   const activeFont = selObj && selObj.type === 'text' ? selObj.font : textFont;
   const swatches = swatchColors.map((c) => {
@@ -1582,6 +1585,7 @@ export default function CardScreen() {
   const fontBtn = (sel, fam) => ({ width: 40, height: 32, borderRadius: 10, border: sel ? '1.5px solid var(--ink-1)' : '1.5px solid var(--line)', background: sel ? 'var(--ink-1)' : 'transparent', color: sel ? '#fff' : 'var(--ink-2)', cursor: 'pointer', fontFamily: fam, fontSize: fam.indexOf('Caveat') >= 0 ? 20 : 15, fontWeight: 600, lineHeight: 1 });
   const tplStyle = (sel) => ({ flex: 1, height: 40, borderRadius: 11, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 12.5, background: sel ? 'var(--ink-1)' : 'var(--white)', color: sel ? '#fff' : 'var(--ink-2)', border: sel ? '1.5px solid var(--ink-1)' : '1.5px solid var(--line-strong)' });
   const faceTabStyle = (sel) => ({ display: 'inline-flex', alignItems: 'center', gap: 7, height: 34, padding: '0 16px', borderRadius: 999, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, background: sel ? 'var(--ink-1)' : 'transparent', color: sel ? '#fff' : 'var(--ink-3)', transition: 'background var(--dur-base),color var(--dur-base)' });
+  const faceTabProps = (sel) => ({ style: faceTabStyle(sel), 'data-on': sel ? '' : undefined });
 
   const coverSwatches = ['blue', 'pink', 'green', 'yellow', 'purple'].map((k) => {
     const c = COVERS[k];
@@ -1780,15 +1784,15 @@ export default function CardScreen() {
             {!mobileView && <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.02em', color: 'var(--ink-1)' }}>Warmly</span>}
           </a>
 
-          <div style={{ position: 'relative', justifySelf: 'center', display: 'flex', alignItems: 'center', gap: 3, background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: 4, boxShadow: 'var(--shadow-sm)', pointerEvents: 'auto' }}>
-            <button onClick={() => setCanvasFace('front')} style={faceTabStyle(face === 'front')}>
+          <div data-facetoggle="" style={{ position: 'relative', justifySelf: 'center', display: 'flex', alignItems: 'center', gap: 3, background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: 4, boxShadow: 'var(--shadow-sm)', pointerEvents: 'auto' }}>
+            <button onClick={() => setCanvasFace('front')} {...faceTabProps(face === 'front')}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="5" y="3" width="14" height="18" rx="2"></rect>
                 <path d="M9 7h6"></path>
               </svg>
               {(!mobileView || face === 'front') && 'Cover'}
             </button>
-            <button onClick={() => setCanvasFace('inside')} style={faceTabStyle(face === 'inside')}>
+            <button onClick={() => setCanvasFace('inside')} {...faceTabProps(face === 'inside')}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M2 6l10 3 10-3"></path>
                 <path d="M2 6v12l10 3 10-3V6"></path>
@@ -1855,6 +1859,7 @@ export default function CardScreen() {
               <button
                 onClick={() => { setShowSend(true); setShowSigners(false); setShowMore(false); setSelectedId(null); }}
                 title="Share"
+                data-hov="grey"
                 style={{ width: 40, height: 40, padding: 0, borderRadius: 999, border: '1px solid var(--line)', background: 'var(--white)', color: 'var(--ink-1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
               >
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1868,6 +1873,7 @@ export default function CardScreen() {
               <button
                 onClick={() => { openDownload(); setShowMore(false); }}
                 title="Download"
+                data-hov="dark"
                 style={{ width: 40, height: 40, padding: 0, borderRadius: 999, border: 'none', background: 'var(--brand)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
               >
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1895,7 +1901,7 @@ export default function CardScreen() {
                 </button>
                 {renderSignersPopover({ top: 'calc(100% + 8px)', left: 0 })}
               </div>
-              <button onClick={() => { setShowSend(true); setShowSigners(false); setSelectedId(null); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 40, padding: '0 16px', borderRadius: 999, border: '1px solid var(--line)', background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', color: 'var(--ink-1)', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 14, cursor: 'pointer', boxShadow: 'var(--shadow-sm)', flexShrink: 0 }}>
+              <button data-hov="glass" onClick={() => { setShowSend(true); setShowSigners(false); setSelectedId(null); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 40, padding: '0 16px', borderRadius: 999, border: '1px solid var(--line)', background: 'color-mix(in srgb,var(--white) 82%,transparent)', backdropFilter: 'blur(10px)', color: 'var(--ink-1)', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 14, cursor: 'pointer', boxShadow: 'var(--shadow-sm)', flexShrink: 0 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="18" cy="5" r="3"></circle>
                   <circle cx="6" cy="12" r="3"></circle>
@@ -1907,6 +1913,7 @@ export default function CardScreen() {
               </button>
               <button
                 onClick={openDownload}
+                data-hov="dark"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 40, padding: '0 18px', borderRadius: 999, border: 'none', background: 'var(--brand)', color: '#fff', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 14, cursor: 'pointer', boxShadow: 'var(--shadow-brand)', flexShrink: 0 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1967,7 +1974,7 @@ export default function CardScreen() {
           )}
 
           <div data-toolpill="" style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 'var(--radius-pill)', padding: 8, boxShadow: 'var(--shadow-lg)' }}>
-            <button onClick={() => setToolFn('select')} style={tb(tool === 'select' && !showTemplates && !showStickers && !showCoverPicker)}>
+            <button onClick={() => setToolFn('select')} {...tbProps(tool === 'select' && !showTemplates && !showStickers && !showCoverPicker)}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2"></path>
                 <path d="M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2"></path>
@@ -1978,7 +1985,7 @@ export default function CardScreen() {
             </button>
             <div style={{ width: 1, height: 30, background: 'var(--line)', margin: '0 2px' }} />
             {face === 'inside' && (
-              <button onClick={() => setToolFn('write')} style={tb(tool === 'write')}>
+              <button onClick={() => setToolFn('write')} {...tbProps(tool === 'write')}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 20h9"></path>
                   <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
@@ -1987,7 +1994,7 @@ export default function CardScreen() {
               </button>
             )}
             {face === 'front' && (
-              <button onClick={() => setShowTemplates((s) => !s)} style={tb(showTemplates)}>
+              <button onClick={() => setShowTemplates((s) => !s)} {...tbProps(showTemplates)}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="3" width="18" height="18" rx="2"></rect>
                   <path d="M3 9h18"></path>
@@ -1996,19 +2003,19 @@ export default function CardScreen() {
                 <span>Template</span>
               </button>
             )}
-            <button onClick={() => setToolFn('draw')} style={tb(tool === 'draw' && !showTemplates)}>
+            <button onClick={() => setToolFn('draw')} {...tbProps(tool === 'draw' && !showTemplates)}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 17c3-4 4 3 7-1s3-7 6-4 4 1 5 0"></path>
               </svg>
               <span>Draw</span>
             </button>
-            <button onClick={() => setToolFn('sticker')} style={tb(tool === 'sticker')}>
+            <button onClick={() => setToolFn('sticker')} {...tbProps(tool === 'sticker')}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5Z"></path>
               </svg>
               <span>Sticker</span>
             </button>
-            <button onClick={() => setToolFn('photo')} style={tb(false)}>
+            <button onClick={() => setToolFn('photo')} {...tbProps(false)}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="4" width="18" height="16" rx="3"></rect>
                 <circle cx="8.5" cy="9.5" r="1.6"></circle>
@@ -2030,7 +2037,7 @@ export default function CardScreen() {
                   if (editingId) commitBox(editingId);
                 }
               }}
-              style={tb(showCoverPicker)}
+              {...tbProps(showCoverPicker)}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 3l7 7-7 7-7-7 7-7Z"></path>
@@ -2064,6 +2071,7 @@ export default function CardScreen() {
           <button
             onClick={openFeedback}
             data-chrome=""
+            data-hov="grey"
             title="Share feedback"
             style={{ position: 'absolute', bottom: 28, right: 20, zIndex: 100, display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 18px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--line)', background: 'var(--white)', color: 'var(--ink-2)', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13.5, cursor: 'pointer', boxShadow: 'var(--shadow-sm)' }}
           >
@@ -2156,7 +2164,7 @@ export default function CardScreen() {
               <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--ink-3)', marginBottom: 9 }}>Invite people to sign</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--sunken)', borderRadius: 'var(--radius-md)', padding: '6px 6px 6px 16px', marginBottom: 22 }}>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--ink-2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>{link}</span>
-                <button onClick={copyLink} style={{ height: 38, padding: '0 18px', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', background: copied ? 'var(--green-soft)' : 'var(--ink-1)', color: copied ? 'var(--green-ink)' : '#fff', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background var(--dur-base)' }}>
+                <button onClick={copyLink} data-hov={copied ? undefined : 'dark'} style={{ height: 38, padding: '0 18px', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', background: copied ? 'var(--green-soft)' : 'var(--ink-1)', color: copied ? 'var(--green-ink)' : '#fff', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background var(--dur-base)' }}>
                   {copied ? 'Copied ✓' : 'Copy link'}
                 </button>
               </div>
