@@ -2,6 +2,11 @@
 
 Notable changes to Warmly, newest entry first. See [DECISIONS.md](./DECISIONS.md) for the reasoning behind architectural choices, not just what changed.
 
+## 2026-09-07 (realtime delete-sync fix)
+
+### Fixed
+- **Deleting an object now syncs to other viewers live.** Adds/edits already propagated, but a delete only showed up on other browsers after a manual refresh. Cause: the realtime subscription filters on `card_id`, and a Postgres DELETE payload only carries the columns in the table's `REPLICA IDENTITY` — the default is the primary key alone, so the DELETE event had no `card_id`, failed the filter, and was dropped before delivery. `supabase/migrations/0010_replica_identity_full.sql` sets `REPLICA IDENTITY FULL` on `card_objects` and `signers` so the full old row (incl. `card_id`) is in the payload. No app-code change — the client's DELETE handler was already correct. Verified across two browsers, both directions. Run once in the SQL Editor.
+
 ## 2026-09-06 (fifth design handoff)
 
 Fifth design handoff (`design_handoff_warmly/`, DESIGN_LOG 0.28.0 → 0.29.0, DECISIONS D-055 → D-056). Frontend only, no migrations — `cards.created_at` was already persisted server-side.
