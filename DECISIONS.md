@@ -225,3 +225,41 @@ In Postgres, RLS policies only ever restrict what an already-permitted role can 
 **The 14-day literal now lives in three places** — the `enforce_card_not_resting()` trigger (`interval '14 days'`), the client (`14 * DAY_MS` in `CardScreen.jsx`), and implicitly as the floor of the purge function's `LIFESPAN_DAYS = 15`. There is no shared constant across SQL + browser JS + Deno. If the lifespan ever changes, all three move together, and the purge value must stay strictly greater than the freeze value or cards would be deleted while still editable. This is an accepted, documented duplication, not an oversight — flagged here so a future change doesn't miss one.
 
 **What this job does not do**: it does not enforce the freeze (the trigger does), it does not run on any user-facing request path, and it rejects any HTTP call that doesn't carry the service-role bearer token, so the public function URL can't be used to trigger an early purge.
+
+## `purge-expired-cards` is currently broken (401) — fix deferred, known accepted gap
+
+**Status**: `purge-expired-cards` returns `401 {"error":"unauthorized"}` on every invocation and deletes nothing. Nothing in the core app is affected. This is deferred by explicit decision, not an oversight. The revisit trigger is at the end of this entry.
+
+**1. What broke**: The function gates its one caller (the `pg_cron` → `pg_net` job from migration `0009`) with an exact-string check in `supabase/functions/purge-expired-cards/index.ts`:
+
+```ts
+const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+if (req.headers.get("Authorization") !== `Bearer ${SERVICE_ROLE_KEY}`) {
+  return json({ error: "unauthorized" }, 401);
+}
+```
+
+`SUPABASE_SERVICE_ROLE_KEY` is auto-injected by Supabase into the function's runtime environment. After the project's secret key was rotated (new-format `sb_secret_…` key, 2026-09-06), Supabase did **not** re-sync the function's injected copy — `supabase secrets list` showed the entire injected key bundle still stamped `2026-09-05T16:31:10Z`, predating the rotation. So the function stayed stuck comparing the incoming `Authorization` header against a `SUPABASE_SERVICE_ROLE_KEY` value that no longer corresponded to any key anywhere on the project. Vault's `service_role_key` (what `net.http_post` actually sends) had been correctly updated to the new key; the mismatch was entirely on the function's stale side.
+
+**2. Root cause, evidenced**: `supabase secrets list` reports a SHA-256 digest of each injected value. Verified this is a plain `sha256(raw)` by reproducing the `SUPABASE_URL` digest locally, and cross-checked that the injected `SUPABASE_ANON_KEY` digest exactly matched the project's `sb_publishable_…` key. The injected `SUPABASE_SERVICE_ROLE_KEY` digest was `c84fe8d2ed3c32a71527a473a7d92e2aaa16715f0b771033f5e64e53af1e4651`. Hashing every key on the project at that time — legacy `anon` JWT, legacy `service_role` JWT, `sb_publishable_…` `default`, `sb_secret_…` `default`, `sb_secret_…` `default_060926` — produced **no match**. The value the function was checking against was a leftover pre-rotation secret key, present nowhere on the project anymore. The 401 was confirmed to originate at the `index.ts` check (not Supabase's gateway) via `net._http_response` — response body exactly `{"error":"unauthorized"}`, no `error_msg`.
+
+**3. Why not fixing it now**: `purge-expired-cards` is a background cleanup job, not load-bearing for anything a user does. Card creation, signing, viewing, realtime sync, and the 14-day read-only freeze (`enforce_card_not_resting`, a DB trigger — entirely independent of this function) all work whether or not the purge ever runs. At Warmly's current uncertain, low traffic the only consequence of a dead purge is that expired `cards` rows and their Storage photos are not deleted. The proper fix means adding a new self-managed secret and redeploying with a changed auth path — new infrastructure for a low-stakes, low-usage feature. Deferring is the deliberate trade.
+
+**4. Current state, left as-is**:
+- Function deployed (`version 2`), `verify_jwt: true`, returns 401 on every call.
+- Every invocation fails the same way — the daily `pg_cron` run (if migration `0009`'s schedule is applied, it fires at 03:15 UTC as a no-op 401) and any manual `net.http_post` test alike. `cron.job_run_details` / `net._http_response` will keep logging these failures; harmless but noisy.
+- No cards are being auto-deleted. Expired cards and their photos accumulate indefinitely.
+- Migration `0008` (feedback FK loosening + denormalised `card_occasion` / `card_format`) stands on its own — it only matters once a purge actually deletes a card, so this bug doesn't change its status either way.
+
+**5. Recommended fix, for future reference** — decouple the trigger auth from Supabase's key rotation by using a secret this project owns:
+
+1. `supabase secrets set PURGE_TRIGGER_SECRET=$(openssl rand -hex 32)`
+2. In `supabase/functions/purge-expired-cards/index.ts`: change the auth check to compare `Authorization` against `Deno.env.get("PURGE_TRIGGER_SECRET")` instead of `SUPABASE_SERVICE_ROLE_KEY`. Keep `SUPABASE_SERVICE_ROLE_KEY` for the `createClient(...)` call only — an auto-managed key is fine there; it is only the equality check that is fragile.
+3. `supabase functions deploy purge-expired-cards --no-verify-jwt --use-api` — with a self-owned secret as the gate and no user-facing path, the platform JWT check is redundant.
+4. In Supabase Vault: remove `service_role_key`, add `purge_trigger_secret` set to the same hex value, and update migration `0009`'s `net.http_post` header to send it.
+
+After this, rotating any Supabase API key never touches the purge job again.
+
+**6. Trigger to revisit**: if Warmly starts getting meaningful real-user traffic. Without the purge running, real (not just test) card rows and uploaded photos accumulate in Postgres and Storage with nothing ever removing them.
+
+**No immediate urgency**: the pre-launch data wipe (`supabase/scripts/wipe_user_data.sql` + `clear_storage.mjs`) already cleared the accumulated **test** cards manually, so there is no backlog pressing on this right now. The gap is purely forward-looking — real user data created from now on will not be auto-purged until the fix above is applied.

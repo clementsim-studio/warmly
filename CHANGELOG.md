@@ -2,6 +2,12 @@
 
 Notable changes to Warmly, newest entry first. See [DECISIONS.md](./DECISIONS.md) for the reasoning behind architectural choices, not just what changed.
 
+## 2026-09-06 (purge job broken by key rotation — fix deferred)
+
+Rotating the Supabase project secret key left `purge-expired-cards` comparing incoming requests against a stale auto-injected `SUPABASE_SERVICE_ROLE_KEY` that Supabase hadn't re-synced — the function now returns `401 {"error":"unauthorized"}` on every call and deletes nothing. Root cause confirmed by SHA-256 digest comparison (the injected value matched none of the project's current keys). Nothing user-facing is affected — the 14-day read-only freeze is a DB trigger, independent of this job.
+
+The fix (swap the check to a self-owned `PURGE_TRIGGER_SECRET` not tied to Supabase key rotation) is **deliberately deferred** — it's a background cleanup job, low stakes at current traffic, and not worth new infrastructure yet. Documented in full in DECISIONS.md ("`purge-expired-cards` is currently broken (401)") with the revisit trigger: **if Warmly gets meaningful real-user traffic**, since expired real cards + photos will otherwise accumulate with nothing removing them. The pre-launch data wipe already cleared accumulated test cards, so there's no current backlog. No code or schema changed in this entry.
+
 ## 2026-09-05 (pre-launch: expired-card purge)
 
 Pre-launch data-retention work. Expired cards were previously frozen at 14 days but never deleted — nothing reclaimed the space. They are now hard-deleted at 15 days by a scheduled Edge Function. `feedback` is deliberately kept for analytics. Schema change (`feedback` foreign keys) plus two new migrations and a new Edge Function; requires manual deploy + Vault setup steps (see README "Scheduled jobs"). Confirmed with the user, including that the delete is permanent and unrecoverable.
